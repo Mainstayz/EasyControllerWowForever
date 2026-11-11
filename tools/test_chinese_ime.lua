@@ -35,7 +35,7 @@ local function defaultDictionary()
     }
 end
 
-local function fixture(dict, savedHistory, overrides)
+local function fixture(dict, savedHistory, overrides, shortcuts)
     if dict == nil then dict = defaultDictionary() end
     if savedHistory == nil then savedHistory = {} end
     local CK = {
@@ -48,7 +48,7 @@ local function fixture(dict, savedHistory, overrides)
     setfenv(chunk, env)
     chunk("EasyController", CK)
     local ime = CK.ChineseIME
-    ime:Load(dict, savedHistory)
+    ime:Load(dict, savedHistory, shortcuts)
     return ime, savedHistory, CK, dict
 end
 
@@ -714,6 +714,144 @@ check("a corrupt history reference to dictionary data cannot mutate the dictiona
     equal(ime:Commit(), "你")
     equal(dict.ni, "你")
     equal(dict.hk, "好")
+end)
+
+check("exact shortcuts lead but keep the matching double-pinyin character selectable", function()
+    local ime, history = fixture({ ss = "松 送" }, nil, nil, { ss = "术士" })
+    feed(ime, "SS")
+    listEqual(ime:Candidates(), { "术士", "松", "送" })
+    equal(ime:Commit(2), "松")
+    equal(ime:GetCode(), "")
+    equal(history.ss["松"], 1)
+    ime:SetCode("ss")
+    listEqual(ime:Candidates(), { "松", "术士", "送" })
+end)
+
+check("odd-length shortcuts consume their whole code and keep learned order after reload", function()
+    local shortcuts = { klz = "卡拉赞 卡拉赞队伍", mld = "玛拉顿" }
+    local dict = { kl = "开" }
+    local ime, history = fixture(dict, { abc = { ["旧词"] = 1 } }, nil, shortcuts)
+    feed(ime, "KLZ")
+    equal(ime:GetDisplayCode(), "klz")
+    listEqual(ime:Candidates(), { "卡拉赞", "卡拉赞队伍", "开" })
+    equal(ime:Commit(2), "卡拉赞队伍")
+    equal(ime:GetCode(), "")
+    equal(history.klz["卡拉赞队伍"], 1)
+    equal(history.abc["旧词"], 1, "absent shortcut history must remain available")
+    ime:SetCode("abc")
+    listEqual(ime:Candidates(), {})
+    ime:Load(dict, history, shortcuts)
+    ime:SetCode("klz")
+    equal(ime:Candidates()[1], "卡拉赞队伍")
+    equal(ime:Commit(), "卡拉赞队伍")
+    equal(history.klz["卡拉赞队伍"], 2)
+    ime:SetCode("mld")
+    equal(ime:Commit(), "玛拉顿")
+    equal(ime:GetCode(), "")
+end)
+
+check("shortcut prefixes never displace longer double-pinyin words or sentences", function()
+    local ime = fixture({ ss = "松", ssui = "松树", lin = "not a full code" }, nil, nil,
+        { ss = "术士", ssu = "缩写" })
+    ime:SetCode("ssui")
+    listEqual(ime:Candidates(), { "松树", "松" })
+    equal(ime:GetDisplayCode(), "ss ui")
+    ime:SetCode("ssuii")
+    listEqual(ime:Candidates(), { "松树", "松" })
+    equal(ime:Commit(), "松树")
+    equal(ime:GetCode(), "i")
+end)
+
+check("shortcut and full-code duplicates keep one candidate with the longest match", function()
+    local ime, history = fixture({ kl = "开", klz = "not a full code" }, nil, nil,
+        { klz = "卡拉赞 卡拉赞 开" })
+    ime:SetCode("klz")
+    listEqual(ime:Candidates(), { "卡拉赞", "开" })
+    equal(ime:Commit(2), "开")
+    equal(ime:GetCode(), "")
+    equal(history.klz["开"], 1)
+    equal(history.kl, nil)
+end)
+
+check("shortcut pagination uses the visible index and resets after backspace", function()
+    local ime, history = fixture({ ab = "甲" }, nil, nil,
+        { abc = "一 二 三 四 五 六 七" })
+    ime:SetCode("abc")
+    ime:Candidates(5)
+    ime:NextPage()
+    listEqual(ime:Candidates(), { "六", "七", "甲" })
+    equal(ime:Commit(2), "七")
+    equal(ime:GetCode(), "")
+    equal(history.abc["七"], 1)
+    ime:SetCode("abc")
+    ime:Candidates(2)
+    ime:NextPage()
+    ime:Backspace()
+    listEqual(ime:Candidates(), { "甲" })
+    equal(select(2, ime:Candidates()), 1)
+    equal(ime:Commit(), "甲")
+end)
+
+check("shortcut lookup is exact and never scans or mutates either dictionary", function()
+    local shortcuts, lookups = { klz = "卡拉赞" }, 0
+    setmetatable(shortcuts, {
+        __index = function() error("shortcut misses must use direct lookup") end,
+        __newindex = function() error("shortcuts must stay read-only") end,
+    })
+    local ime = fixture({}, {}, {
+        pairs = function(value)
+            assert(value ~= shortcuts, "shortcut enumeration is forbidden")
+            return pairs(value)
+        end,
+        next = function(value, key)
+            assert(value ~= shortcuts, "shortcut enumeration is forbidden")
+            return next(value, key)
+        end,
+        rawget = function(value, key)
+            if value == shortcuts then lookups = lookups + 1 end
+            return rawget(value, key)
+        end,
+    }, shortcuts)
+    equal(lookups, 0)
+    ime:SetCode("klz")
+    equal(ime:Candidates()[1], "卡拉赞")
+    equal(lookups, 1)
+    ime:Candidates()
+    ime:NextPage()
+    equal(lookups, 1)
+    ime:SetCode("klza")
+    listEqual(ime:Candidates(), {})
+    equal(lookups, 2)
+    equal(shortcuts.klz, "卡拉赞")
+end)
+
+check("a new load clears shortcuts and ignores corrupt shortcut values and references", function()
+    local shortcuts = { klz = "卡拉赞", mld = false, zz = {} }
+    local history = { klz = shortcuts }
+    local ime = fixture({}, history, nil, shortcuts)
+    equal(next(history), nil)
+    ime:SetCode("klz")
+    equal(ime:Commit(), "卡拉赞")
+    equal(shortcuts.klz, "卡拉赞")
+    ime:SetCode("mld")
+    listEqual(ime:Candidates(), {})
+    ime:Load({}, shortcuts, shortcuts)
+    ime:SetCode("klz")
+    equal(ime:Commit(), "卡拉赞")
+    equal(shortcuts.klz, "卡拉赞")
+    ime:Load({}, history)
+    equal(history.klz["卡拉赞"], 1)
+    ime:SetCode("klz")
+    listEqual(ime:Candidates(), {})
+    ime:Load({}, history, shortcuts)
+    ime:SetCode("klz")
+    equal(ime:Commit(), "卡拉赞")
+    equal(history.klz["卡拉赞"], 2)
+    for _, value in ipairs({ false, 12, "broken" }) do
+        ime:Load({}, {}, value)
+        ime:SetCode("klz")
+        listEqual(ime:Candidates(), {})
+    end
 end)
 
 assert(failed == 0, failed .. " Chinese IME regression tests failed (" .. passed .. " passed)")

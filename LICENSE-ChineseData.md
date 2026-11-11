@@ -1,5 +1,10 @@
 # 中文词库数据许可、来源与复现
 
+本文件的构建、完整双拼编码和统计规则适用于 `Dict_zhCN.lua`。
+独立的国服游戏简写表 `Dict_zhCN_WoW.lua` 由项目维护，按主项目 MIT License 提供；
+其词表范围、公开参考来源和名称处理见 [国服魔兽常用语简写](docs/zhCN-wow-shortcuts.md)。
+简写不会混入下面的通用双拼数据，也不参与其构建摘要。
+
 `Dict_zhCN.lua` 是离线构建的数据文件，适用 **CC-BY-SA-4.0**：
 <https://creativecommons.org/licenses/by-sa/4.0/>，法律文本：
 <https://creativecommons.org/licenses/by-sa/4.0/legalcode>。
@@ -116,7 +121,7 @@
 
 零声母分别为 `a=aa,o=oo,e=ee,ai=ai,an=an,ao=ao,ang=ah,ei=ei,en=en,eng=eg,er=er,ou=ou`。
 `yi/ya/wo/yu` 等保留 `y/w` 声母，`lv/nv` 使用 `v`。每个汉字对应两个 ASCII 字母，
-词语使用完整逐字编码；词库不含首字母简拼、单键缩写或运行时索引构建。
+词语使用完整逐字编码；`Dict_zhCN.lua` 不含首字母简拼、单键缩写或运行时索引构建。
 例如“你好”为 `nihk`，“拍卖行”为 `plmlhh`，“加血”为 `jwxt`。
 
 单字保留上游第一个可编码读音，没有按候选数、Unicode 基本区或词频截断生僻字；

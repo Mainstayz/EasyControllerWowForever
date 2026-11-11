@@ -17,7 +17,7 @@ CK.CHINESE_PUNCTUATION = {
 
 function CK:InitChineseInput()
     if type(self.db.imeHistory) ~= "table" then self.db.imeHistory = {} end
-    self.ChineseIME:Load(self.ZIRANMA_DICT or {}, self.db.imeHistory)
+    self.ChineseIME:Load(self.ZIRANMA_DICT or {}, self.db.imeHistory, self.ZHCN_WOW_SHORTCUTS)
     if self.db.settings.chineseInput == "ziranma" and self.db.settings.inputMethod ~= "wheel"
         and self.db.settings.inputMethod ~= "stick" then self.db.settings.inputMethod = "stick" end
 end

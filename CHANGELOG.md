@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **WoW shortcuts in Chinese mode**: 291 case-insensitive codes for 265 distinct Chinese terms,
+  including classes, common specializations, Classic / TBC / Wrath dungeons and raids, group chat,
+  combat and professions. Examples: `ss` → 术士, `zs` → 战士, `ny` → 怒焰裂谷,
+  `ah` → 哀嚎洞穴, `mld` → 玛拉顿 and `klz` → 卡拉赞. Ambiguous names remain selectable,
+  including the alternative 怒焰峡谷. Choices learn locally, including odd-length codes.
+- Shortcut matches apply to the whole composition; longer double-pinyin input keeps its existing
+  prefix behavior. Original double-pinyin candidates remain available. A separate curated table
+  and source guide preserve the reproducible general dictionary and its licensing.
+
 ## 1.20.0
 
 - **Auction house prices** (Comfort › Auction house, off by default; asked): a **Scan prices**

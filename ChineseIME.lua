@@ -9,7 +9,7 @@ local MAX_COUNT = 9999
 local MAX_TEXT_BYTES = 128
 local DEFAULT_LIMIT = 5
 
-local dictionary, history = {}, {}
+local dictionary, history, shortcuts = {}, {}, {}
 local code, page, pageLimit = "", 1, DEFAULT_LIMIT
 local cachedCandidates
 
@@ -18,8 +18,10 @@ local function invalidate()
 end
 
 local function validCode(value)
+    -- Retain learned shortcuts even if a later load temporarily omits their
+    -- data table. History alone never injects a candidate into query results.
     return type(value) == "string" and #value >= 2 and #value <= MAX_CODE
-        and #value % 2 == 0 and not value:find("[^a-z]")
+        and not value:find("[^a-z]")
 end
 
 local function validCount(value)
@@ -63,30 +65,38 @@ local function validText(text)
 end
 
 -- Keep only the current composition's list. Query at most 16 complete
--- double-pinyin prefixes by direct lookup; never enumerate the dictionary.
+-- double-pinyin prefixes and one exact shortcut; never enumerate either table.
+-- Shortcuts match the entire code so they cannot consume the first syllable
+-- of a longer double-pinyin word or sentence.
 local function candidates()
     if cachedCandidates then return cachedCandidates end
     local out, seen = {}, {}
-    for length = #code - #code % 2, 2, -2 do
+    for length = #code, 2, -1 do
         local prefix = code:sub(1, length)
-        local value = rawget(dictionary, prefix)
-        if type(value) == "string" then
+        local full = length % 2 == 0 and rawget(dictionary, prefix)
+        local shortcut = length == #code and rawget(shortcuts, code)
+        if type(full) == "string" or type(shortcut) == "string" then
             local row = rawget(history, prefix)
             if type(row) ~= "table" then row = nil end
             local group, learned = {}, false
-            -- Explicit ASCII separators avoid splitting a UTF-8 continuation
-            -- byte that some locales classify as whitespace through %s.
-            for text in value:gmatch("[^ \t\r\n]+") do
-                if not seen[text] and validText(text) then
-                    seen[text] = true
-                    local count = row and validCount(rawget(row, text)) or 0
-                    count = count or 0
-                    if count > 0 then learned = true end
-                    group[#group + 1] = {
-                        text = text, length = length, count = count, rank = #group + 1,
-                    }
+            local function append(value)
+                if type(value) ~= "string" then return end
+                -- Explicit ASCII separators avoid splitting a UTF-8 continuation
+                -- byte that some locales classify as whitespace through %s.
+                for text in value:gmatch("[^ \t\r\n]+") do
+                    if not seen[text] and validText(text) then
+                        seen[text] = true
+                        local count = row and validCount(rawget(row, text)) or 0
+                        count = count or 0
+                        if count > 0 then learned = true end
+                        group[#group + 1] = {
+                            text = text, length = length, count = count, rank = #group + 1,
+                        }
+                    end
                 end
             end
+            append(shortcut)
+            append(full)
             -- Longer consumption always precedes shorter consumption. History
             -- only changes ordering inside one group; ties keep dictionary order.
             if learned then
@@ -111,12 +121,14 @@ function I:Reset()
     invalidate()
 end
 
--- history[completeCode][text] = positive use count. Keep the caller's root
+-- history[matchedCode][text] = positive use count. Keep the caller's root
 -- table so the integrating addon can persist it directly in SavedVariables.
--- Orphaned history never creates candidates absent from the dictionary.
-function I:Load(dict, savedHistory)
+-- Orphaned history never creates candidates absent from either data table.
+function I:Load(dict, savedHistory, shortcutDict)
     dictionary = type(dict) == "table" and dict or {}
-    history = type(savedHistory) == "table" and savedHistory ~= dictionary and savedHistory or {}
+    shortcuts = type(shortcutDict) == "table" and shortcutDict or {}
+    history = type(savedHistory) == "table" and savedHistory ~= dictionary
+        and savedHistory ~= shortcuts and savedHistory or {}
     self:Prune()
     self:Reset()
 end
@@ -138,6 +150,7 @@ function I:GetCode()
 end
 
 function I:GetDisplayCode()
+    if type(rawget(shortcuts, code)) == "string" then return code end
     local syllables = {}
     for pos = 1, #code, 2 do syllables[#syllables + 1] = code:sub(pos, pos + 1) end
     return table.concat(syllables, " ")
@@ -208,7 +221,7 @@ function I:Commit(index)
     if not entry then return nil end
     local prefix = code:sub(1, entry.length)
     local row = rawget(history, prefix)
-    if type(row) ~= "table" or row == history or row == dictionary then
+    if type(row) ~= "table" or row == history or row == dictionary or row == shortcuts then
         row = {}
         rawset(history, prefix, row)
     end
@@ -230,7 +243,8 @@ end
 function I:Prune()
     local entries, rows = {}, {}
     for prefix, row in pairs(history) do
-        if not validCode(prefix) or type(row) ~= "table" or row == history or row == dictionary then
+        if not validCode(prefix) or type(row) ~= "table" or row == history
+            or row == dictionary or row == shortcuts then
             rawset(history, prefix, nil)
         else
             -- Damaged saved tables may share a row between codes. Detach it

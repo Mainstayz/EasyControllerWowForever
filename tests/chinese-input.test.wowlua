@@ -83,6 +83,31 @@ local function englishToggle()
     expect(ck.ChineseIME:GetCode()).toBe("")
 end
 
+@test("WoW class shorthand commits from the touch candidate")
+local function classShortcut()
+    local ck = keyboard()
+    typeCode("SS")
+    expect(ck:GetText()).toBe("")
+    expect(ck.state.suggestions[1]).toBe("术士")
+    mock.click(ck.frame.sugg[1])
+    expect(ck:GetText()).toBe("术士")
+    expect(ck.ChineseIME:GetCode()).toBe("")
+    expect(ck.frame).toBeShown()
+end
+
+@test("odd-length dungeon shorthand confirms with gamepad A")
+local function dungeonShortcut()
+    local ck = keyboard()
+    typeCode("KLZ")
+    expect(ck.ChineseIME:GetDisplayCode()).toBe("klz")
+    expect(ck.state.suggestions[1]).toBe("卡拉赞")
+    mock.pressKey("PAD1")
+    expect(ck:GetText()).toBe("卡拉赞")
+    expect(ck.ChineseIME:GetCode()).toBe("")
+    expect(ck.sendButton:GetAttribute("macrotext")).toBe("")
+    expect(ck.frame).toBeShown()
+end
+
 @test("Chinese input screenshot")
 local function screenshot()
     local ck = keyboard()

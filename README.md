@@ -34,7 +34,11 @@ Space/RB or A, then press A again to send. The D-pad moves through candidates an
 only the unfinished code. The Chinese/EN and ABC buttons support English words. Simplified Chinese
 also covers the configuration panel, gamepad mapping, wheels, comfort features, first-launch guide,
 quick phrases and help messages. Button names, commands and proper names keep their original form.
-See the [Chinese input guide (中文操作说明)](docs/zhCN-input.md) for controls and the key map.
+Chinese mode also offers 291 WoW shortcut codes: `ss` → 术士, `zs` → 战士, `ny` → 怒焰裂谷,
+`ah` → 哀嚎洞穴, `mld` → 玛拉顿 and `klz` → 卡拉赞. Codes are case-insensitive;
+ambiguous meanings remain selectable and learn your preferred order locally. Confirm one shortcut
+before typing the next. See the [Chinese input guide (中文操作说明)](docs/zhCN-input.md) for controls
+and the key map, and [国服魔兽常用语简写](docs/zhCN-wow-shortcuts.md) for examples and web sources.
 
 ## Installation
 

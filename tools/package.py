@@ -15,7 +15,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 ADDON = "EasyController"
 EXTRA = ["Bindings.xml", "LICENSE", "LICENSE-ConsolePort.md", "LICENSE-ChineseData.md",
-         "README.md", "CHANGELOG.md", "docs/zhCN-input.md"]
+         "README.md", "CHANGELOG.md", "docs/zhCN-input.md", "docs/zhCN-wow-shortcuts.md"]
 
 
 def main():

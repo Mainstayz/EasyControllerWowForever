@@ -40,7 +40,10 @@ local function fixture(realDictionary)
         ni = "你 尼 呢 泥 拟 逆 妮 腻 倪 昵 匿", hk = "好 号 浩",
         nihk = "你好", vsgo = "中国", ui = "是 时 事 市 十 使 世 史 式 师 试 诗",
     }
-    if realDictionary then assert(loadfile("Dict_zhCN.lua"))("EasyController", CK) end
+    if realDictionary then
+        assert(loadfile("Dict_zhCN.lua"))("EasyController", CK)
+        assert(loadfile("Dict_zhCN_WoW.lua"))("EasyController", CK)
+    end
     CK:InitChineseInput()
     CK.Predict = {
         Context = function() return {} end,
@@ -346,6 +349,76 @@ check("the production dictionary uses standard Ziranma for actual chat phrases",
         equal(CK:GetText(), example[2])
         equal(CK.ChineseIME:GetCode(), "")
     end
+end)
+
+check("production shortcuts commit Chinese with A and keep both send edges suppressed", function()
+    local CK, typeCode, clickA = fixture(true)
+    for _, example in ipairs({
+        { "ss", "术士" }, { "ZS", "战士" }, { "NY", "怒焰裂谷" },
+        { "AH", "哀嚎洞穴" }, { "MLD", "玛拉顿" }, { "klz", "卡拉赞" },
+        { "jhs", "集合石" }, { "ankxydcx", "奥妮克希亚的巢穴" },
+    }) do
+        CK.buffer = ""
+        typeCode(example[1])
+        equal(CK:GetText(), "")
+        equal(CK.state.suggestions[1], example[2])
+        clickA()
+        equal(CK:GetText(), example[2])
+        equal(CK.ChineseIME:GetCode(), "")
+        equal(CK.db.imeHistory[example[1]:lower()][example[2]], 1)
+    end
+end)
+
+check("every production shortcut and alternate meaning is selectable and consumes all letters", function()
+    local CK, typeCode = fixture(true)
+    for code, value in pairs(CK.ZHCN_WOW_SHORTCUTS) do
+        local index = 0
+        for word in value:gmatch("[^ ]+") do
+            index = index + 1
+            CK.buffer = ""
+            CK.db.imeHistory[code] = nil
+            typeCode(code)
+            equal(CK.state.suggestions[index], word)
+            CK:AcceptSuggestion(index)
+            equal(CK:GetText(), word)
+            equal(CK.ChineseIME:GetCode(), "")
+        end
+    end
+end)
+
+check("alternate dungeon meanings survive input reinitialization and odd-code drafts", function()
+    local CK, typeCode = fixture(true)
+    typeCode("ny")
+    equal(CK.state.suggestions[2], "怒焰峡谷")
+    CK:AcceptSuggestion(2)
+    equal(CK:GetText(), "怒焰峡谷")
+    CK:InitChineseInput()
+    CK.buffer = ""
+    typeCode("ny")
+    equal(CK.state.suggestions[1], "怒焰峡谷")
+    CK:CancelIMEComposition()
+    typeCode("klz")
+    CK:Close("combat")
+    equal(CK.draft.imeCode, "klz")
+    local eb = { GetText = function() return "" end,
+        GetAttribute = function(_, k) if k == "chatType" then return "SAY" end end }
+    CK:Open(eb)
+    equal(CK.ChineseIME:GetCode(), "klz")
+    equal(CK.state.suggestions[1], "卡拉赞")
+    CK:AcceptSuggestion(1)
+    equal(CK:GetText(), "卡拉赞")
+end)
+
+check("English mode and ABC keep shortcut letters literal", function()
+    local CK, typeCode = fixture(true)
+    typeCode("ss")
+    CK:CommitIMERaw()
+    equal(CK:GetText(), "ss")
+    CK:ToggleIMELatin()
+    typeCode("klz")
+    equal(CK:GetText(), "ssklz")
+    equal(CK:IsIMEComposing(), false)
+    equal(next(CK.db.imeHistory), nil)
 end)
 
 check("Chinese input selects a CJK font even on an English client", function()
