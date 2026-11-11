@@ -801,7 +801,7 @@ end
 
 function E:Crumb()
     local w = self:Wheel()
-    return L.TAB_WHEELS .. " › " .. L.MYWHEEL_H .. " › " .. (w and w.name or "")
+    return L.TAB_WHEELS .. L.UI_PATH_SEP .. L.MYWHEEL_H .. L.UI_PATH_SEP .. (w and w.name or "")
 end
 
 function E:Render()

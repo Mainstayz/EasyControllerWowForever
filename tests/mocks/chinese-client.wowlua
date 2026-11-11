@@ -1,0 +1,8 @@
+import * as mock from "wowlua:mock"
+
+-- The emulator defaults to enUS. Exercise the addon's locale selection as
+-- a Simplified Chinese client before its Lua files capture their labels.
+-- Project mocks are only loaded by the test runner, never shipped in game.
+mock.stub(_G, "GetLocale", function(): string
+    return "zhCN"
+end)

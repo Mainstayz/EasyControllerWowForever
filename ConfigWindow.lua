@@ -623,7 +623,7 @@ end
 
 function RailPage:Crumb()
     local parent = self.def.crumb or L["TAB_" .. self.def.key:upper()] or ""
-    return parent .. " › " .. (self:Section().label or "")
+    return parent .. L.UI_PATH_SEP .. (self:Section().label or "")
 end
 
 ---------------------------------------------------------------------------

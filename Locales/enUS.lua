@@ -853,7 +853,7 @@ CK.L = {
     GUIDE_COMPACT_NOT_GAMEPAD = "The layout in use isn't a gamepad one: pick the %s layout in Edit Mode first.",
     GUIDE_COMPACT_UNAVAILABLE = "Edit Mode doesn't offer it here.",
     GUIDE_KEYBOARD_HELP = "Opens when you write in the chat or in a text field.",
-    GUIDE_DAISY_TEXT = "8 petals of 4 characters around the stick. The stick picks a petal, A B X Y the character.",
+    GUIDE_DAISY_TEXT = "8 petals of 4 characters around the stick. The left stick picks a petal; flick the right stick toward the character to type it.",
     GUIDE_SPLIT_TEXT = "The keyboard split in two halves: each stick moves its cursor on its half.",
     GUIDE_CARD_PICK = "Pick this card to see its options.",
     GUIDE_PHRASES_TEXT = "Ready-made phrases (gg, thanks, need heals...) sent in one press on the channel you pick, all editable. Give them a button, or open them from the bubble at the end of the keyboard's suggestions.",
@@ -959,5 +959,6 @@ CK.L = {
     IME_CONFIRM = "Commit",
     IME_SELECT_HELP = "Select / page",
     IME_STATUS = "Chinese input: %s",
+    UI_PATH_SEP = " › ",
     IME_USAGE = "/ec ime ziranma|latin|off — Ziranma Chinese, direct English, or disable. /ec mode stick: full keyboard for touch. ni hk → 你好; vs go → 中国; xx xx → 谢谢.",
 }

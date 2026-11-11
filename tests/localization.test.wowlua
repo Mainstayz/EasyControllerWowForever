@@ -1,0 +1,94 @@
+import test, beforeEach, expect from "wowlua:test"
+import * as mock from "wowlua:mock"
+
+local function keyboard(): any
+    return _G.ControllerKeyboard
+end
+
+local function setting(id: string): any
+    local page = keyboard().Config:Page()
+    for _, row in ipairs(page.rowsUI) do
+        if row.index and page.rows[row.index].id == id then return row end
+    end
+    error("Visible setting not found: " .. id)
+end
+
+@beforeEach
+local function setup()
+    local ck = keyboard()
+    ck.Guide:SetSeen()
+    ck:Close("test")
+    ck.Config:Close("test")
+end
+
+@test("Chinese client translates tabs, controls and default phrases")
+local function translated()
+    local ck = keyboard()
+    expect(ck.L.TAB_KEYBOARD).toBe("键盘")
+    expect(ck.L.SEND).toBe("发送")
+    expect(ck.L.IME_ZIRANMA).toBe("自然码双拼")
+    expect(ck.L.CHANNEL_NAMES[1]).toBe("说")
+    expect(ck.L.PHRASE_ROWS[1][1] ~= "Social").toBe(true)
+    expect(ck.Phrases:Defaults().rows[1].tiles[1]).toBe("打得漂亮")
+end
+
+@test("Chinese settings enable Ziranma and split keyboard using only clicks")
+local function settingsClicks()
+    local ck = keyboard()
+    ck:SetChineseInput("off")
+    ck:SetInputMethod("wheel")
+    ck.Config:Open("keyboard", 2)
+    expect(setting("k_chinese").label:GetText()).toBe("中文输入法")
+    mock.click(setting("k_chinese").right)
+    expect(ck.db.settings.chineseInput).toBe("ziranma")
+    expect(setting("k_method").label:GetText()).toBe("键盘形式")
+    mock.click(setting("k_method").right)
+    expect(ck.db.settings.inputMethod).toBe("stick")
+    expect(setting("k_method").value:GetText()).toBe("双摇杆键盘")
+end
+
+@test("Chinese keyboard shows translated send and candidate controls")
+local function keyboardLabels()
+    local ck = keyboard()
+    ck:SetChineseInput("ziranma")
+    ck:SetInputMethod("stick")
+    ck:OpenStandalone()
+    expect(ck.frame.actions.Send.label:GetText()).toBe("发送")
+    ck:TypeChar("n")
+    ck:TypeChar("i")
+    expect(ck.frame.actions.Send.label:GetText()).toBe("上屏")
+    expect(ck.state.suggestions[1]).toBe("你")
+end
+
+@test("Chinese help uses the multilingual font even with an English chat font")
+local function helpFont()
+    local ck = keyboard()
+    local original, size, flags = ChatFontNormal:GetFont()
+    ChatFontNormal:SetFont("Fonts\\ARIALN.TTF", size, flags)
+    local text = ck.ConfigKit.ChatText(UIParent, 14)
+    local actual = text:GetFont()
+    expect(actual).toBe(ck:GetFontPath())
+    expect(text:CanNonSpaceWrap()).toBe(true)
+    text:Hide()
+    ChatFontNormal:SetFont(original, size, flags)
+end
+
+@test("Chinese settings screenshot")
+local function settingsScreenshot()
+    local ck = keyboard()
+    ck:SetChineseInput("ziranma")
+    ck:SetInputMethod("stick")
+    ck.Config:Open("keyboard", 2)
+    ck.Config.frame:ClearAllPoints()
+    ck.Config.frame:SetPoint("TOP", UIParent, "TOP", 0, 0)
+    mock.screenshot("chinese-settings", ck.Config.frame)
+end
+
+@test("Chinese guide screenshot")
+local function guideScreenshot()
+    local ck = keyboard()
+    ck.Guide:Open(1)
+    ck.Config.frame:ClearAllPoints()
+    ck.Config.frame:SetPoint("TOP", UIParent, "TOP", 0, 0)
+    mock.screenshot("chinese-guide", ck.Config.frame)
+end

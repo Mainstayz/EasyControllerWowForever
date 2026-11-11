@@ -41,13 +41,15 @@ for ch in ("nihk"):gmatch(".") do ControllerKeyboard:TypeChar(ch) end
 | 任务                                        | 验证内容                                                       |
 | ------------------------------------------- | -------------------------------------------------------------- |
 | EasyController: wowlua check                | 项目清单、加载配置和源代码检查                                 |
-| EasyController: wowlua emulator tests       | 加载完整插件及 Blizzard UI，运行 6 项界面 / 输入测试并生成截图 |
-| EasyController: Lua 5.1 regressions         | 117 项 Lua 回归及 49 个运行时 Lua 文件的语法检查               |
+| EasyController: wowlua emulator tests       | 加载完整插件及 Blizzard UI，运行中文界面 / 输入测试并生成截图 |
+| EasyController: Lua 5.1 regressions         | 输入等逻辑回归、本地化覆盖与格式检查，以及运行时 Lua 语法检查   |
 | EasyController: Python and dictionary tests | 22 项发布和中文词库测试                                        |
 
-wowlua 模拟器测试覆盖：键盘打开、触屏式候选点击、手柄 A 先选字不发送、B 取消编码并保留文字、中英文切换和截图。
+wowlua 模拟器测试覆盖：键盘打开、触屏式候选点击、手柄 A 先选字不发送、B 取消编码并保留文字、中英文切换、设置界面点击启用自然码 / 双摇杆键盘，以及中文设置、引导和键盘截图。
 
-VS Code 左侧“测试”视图也会发现 `tests/chinese-input.test.wowlua`，可以点 **Run Test** 或 **Debug Test**。现有 `tools/test_*.lua` 使用项目自己的 Lua 5.1 运行器，从任务菜单运行。
+`tests/mocks/chinese-client.wowlua` 在测试加载插件前模拟简体中文客户端，使翻译资源按实际加载流程生效。实际游戏界面语言仍跟随客户端；开启自然码只改变输入法，不改变界面语言。
+
+VS Code 左侧“测试”视图会发现 `tests/chinese-input.test.wowlua` 和 `tests/localization.test.wowlua`，可以点 **Run Test** 或 **Debug Test**。现有 `tools/test_*.lua` 使用项目自己的 Lua 5.1 运行器，从任务菜单运行。
 
 如果从集成终端执行，请在仓库根目录使用：
 
@@ -82,7 +84,7 @@ ControllerKeyboard.imeSendHandled
 
 ## 工具与实际游戏的验证范围
 
-wowlua 在独立进程中模拟客户端，可加载本机游戏的 Blizzard UI、字体和纹理。本次已经成功加载 WoW Forever 1.60.1 的界面，6 项模拟器测试通过，并实际生成、检查了中文候选截图。
+wowlua 在独立进程中模拟客户端，可加载本机游戏的 Blizzard UI、字体和纹理。模拟器已成功加载 WoW Forever 1.60.1 的界面；中文界面及输入测试可生成设置、引导和候选截图。
 
 模拟器里鼠标点击可验证触屏点按所调用的按钮逻辑，`mock.pressKey` 可验证手柄按键绑定。掌机真实摇杆、触屏驱动映射以及实际服务器下的战斗保护仍应进入游戏验证。
 

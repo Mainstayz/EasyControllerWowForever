@@ -645,7 +645,7 @@ function W:Crumb()
         or format(L.CRUMB_LAYER, (K.ComboMarkup("", layer, 14):gsub(" %+ $", "")))
     -- The character's profile being set, when it has more than one
     local profile = #CK.Profiles:Sets() > 1 and select(2, CK.Profiles:ActiveSet())
-    return L.TAB_GAMEPAD .. (profile and (" › " .. profile) or "") .. " › " .. name
+    return L.TAB_GAMEPAD .. (profile and (L.UI_PATH_SEP .. profile) or "") .. L.UI_PATH_SEP .. name
 end
 
 function W:Help()

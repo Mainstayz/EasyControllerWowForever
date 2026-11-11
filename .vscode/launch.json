@@ -17,6 +17,15 @@
       "test": "tests/chinese-input.test.wowlua",
       "flavor": "camelot",
       "stopOnEntry": false
+    },
+    {
+      "name": "EasyController: preview Chinese settings",
+      "type": "wowlua",
+      "request": "launch",
+      "test": "tests/localization.test.wowlua",
+      "filter": "Chinese settings screenshot",
+      "flavor": "camelot",
+      "stopOnEntry": false
     }
   ]
 }

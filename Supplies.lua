@@ -193,7 +193,7 @@ local function tooltip(owner, b)
     -- Whose buttons these are, and where to change or hide them (players
     -- didn't know what the buttons over the bars were)
     local shortcut = CK.Mapping.ChordLabel and CK.Mapping:ChordLabel(CK.db.settings.shortcut) or ""
-    GameTooltip:AddLine(format(L.SUP_TIP_ADDON, L.TAB_ALERTS .. " › " .. L.SEC_SUPPLIES, shortcut), 0.2, 0.8, 1, true)
+    GameTooltip:AddLine(format(L.SUP_TIP_ADDON, L.TAB_ALERTS .. L.UI_PATH_SEP .. L.SEC_SUPPLIES, shortcut), 0.2, 0.8, 1, true)
     GameTooltip:Show()
 end
 

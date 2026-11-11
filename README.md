@@ -23,16 +23,17 @@ and **quest links** in the chat. Each module can be turned off in the options.
 
 ## Languages
 
-The interface is translated into English, French, German, Spanish and Italian, following the game
-client's language. Suggestions and keyboard layout also follow it by default: a German client gets
+The interface is translated into English, French, German, Spanish, Italian and Simplified Chinese,
+following the game client's language. Suggestions and keyboard layout also follow it by default: a German client gets
 QWERTZ and the German dictionary.
 
 Simplified Chinese input is available with an offline **Ziranma (自然码) double-pinyin IME**, using
 both gamepad keyboards or touch. Enable it with `/ec ime ziranma` (on by default on a Chinese client),
 then `/ec mode stick` for the full QWERTY keyboard. Type `nihk`, select **你好**, confirm with R3,
 Space/RB or A, then press A again to send. The D-pad moves through candidates and pages; B cancels
-only the unfinished code. The Chinese/EN and ABC buttons support English words. The keyboard's main
-controls are also translated into Simplified Chinese; other settings fall back to English.
+only the unfinished code. The Chinese/EN and ABC buttons support English words. Simplified Chinese
+also covers the configuration panel, gamepad mapping, wheels, comfort features, first-launch guide,
+quick phrases and help messages. Button names, commands and proper names keep their original form.
 See the [Chinese input guide (中文操作说明)](docs/zhCN-input.md) for controls and the key map.
 
 ## Installation

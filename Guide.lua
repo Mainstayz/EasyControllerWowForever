@@ -1488,10 +1488,10 @@ function G:Hints()
 end
 
 function G:Crumb()
-    if self.mode == "identify" then return L.GUIDE_CRUMB .. " › " .. L.GUIDE_C2 .. " › " .. L.GUIDE_IDENTIFYING end
+    if self.mode == "identify" then return L.GUIDE_CRUMB .. L.UI_PATH_SEP .. L.GUIDE_C2 .. L.UI_PATH_SEP .. L.GUIDE_IDENTIFYING end
     if self.mode == "bind" then return L.GUIDE_BIND_NOW end
     if self.mode == "preview" then return L.GUIDE_PREVIEW_LIVE end
-    return L.GUIDE_CRUMB .. " › " .. L["GUIDE_C" .. self.step]
+    return L.GUIDE_CRUMB .. L.UI_PATH_SEP .. L["GUIDE_C" .. self.step]
 end
 
 function G:RenderHelp()

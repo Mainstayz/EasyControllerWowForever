@@ -26,7 +26,17 @@
   free again.
 - **Autorun's arrow points up** (reported): the L3 icon showed the ping's arrow pointing down.
 
-## 1.20.0-beta1 (Chinese input)
+
+## 1.20.0-beta2
+
+- **Simplified Chinese interface** across the keyboard, configuration panel, gamepad mapping,
+  wheels, comfort features, profiles, first-launch guide, quick phrases and help messages. Follows
+  the client's language; button names, commands and proper names are kept intact. Chinese help
+  uses a multilingual font, supports wrapping between characters, and uses a compatible path
+  separator so missing glyphs do not appear in navigation hints.
+- Chinese resources are checked against the English base for missing entries, nested phrases,
+  format arguments and colour codes. Emulator tests exercise the Chinese UI and enable Ziranma
+  and the split keyboard directly from their settings controls.
 
 ## 1.20.0-beta1
 

@@ -48,12 +48,20 @@ function K.Text(parent, size, color, layer)
 end
 
 local function chatFont()
+    -- Help text must use the same CJK-capable font as the labels. A chat
+    -- font inherited from an English UI may contain no Chinese glyphs.
+    if GetLocale() == "zhCN" or GetLocale() == "zhTW" or CK:HasChineseInput() then
+        return CK:GetFontPath()
+    end
     return (ChatFontNormal and ChatFontNormal:GetFont()) or STANDARD_TEXT_FONT or "Fonts\\ARIALN.TTF"
 end
 
 function K.ChatText(parent, size, color, layer)
     local fs = parent:CreateFontString(nil, layer or "OVERLAY")
     fs:SetFont(chatFont(), size, "")
+    if fs.SetNonSpaceWrap and (GetLocale() == "zhCN" or GetLocale() == "zhTW" or CK:HasChineseInput()) then
+        fs:SetNonSpaceWrap(true)
+    end
     fs:SetShadowOffset(1, -1)
     fs:SetShadowColor(0, 0, 0, 0.9)
     fs:SetJustifyH("LEFT")
