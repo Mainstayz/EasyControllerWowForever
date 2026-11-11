@@ -86,6 +86,7 @@ function CK:ButtonAction(button)
     local method = self:GetMethod()
     if method.ownButtons then return method.buttons[button] end
     if button == "PAD2" then
+        if self:IsIMEComposing() then return "CancelIMEComposition" end
         return self.standalone and STANDALONE_ACTIONS.PAD2 or "CancelMessage"
     end
     return self:GetMethod().buttons[button] or COMMON_ACTIONS[button]
@@ -97,6 +98,7 @@ function CK:OnPadButton(button)
     end
     self.padDown = self.padDown or {}
     self.padDown[button] = true
+    if button == "PADDUP" and self:HasChineseInput() then self.imeToggleAt = GetTime() end
     local action = self:ButtonAction(button)
     if action then
         self:RunAction(action, button)
@@ -104,6 +106,11 @@ function CK:OnPadButton(button)
 end
 
 function CK:OnPadButtonUp(button)
+    if button == "PADDUP" and self.imeToggleAt then
+        local held = GetTime() - self.imeToggleAt
+        self.imeToggleAt = nil
+        if held >= 0.5 then self:ToggleIMELatin() end
+    end
     if self.padDown then self.padDown[button] = nil end
     if button == self.repeatButton then
         self.repeatFn = nil
@@ -318,6 +325,16 @@ function CK:PrepareSend(down)
     if InCombatLockdown() then return end
     local method = self:GetMethod()
     if method.SendPress and method:SendPress(down) then return end
+    if self.imeSendHandled or self:IsIMEComposing() then
+        -- Both edges of one A/touch press belong to candidate confirmation.
+        -- The release must never send the text just committed on the press.
+        self.sendButton:SetAttribute("macrotext", "")
+        if not self.imeSendHandled then
+            self.imeSendHandled = true
+            self:AcceptIMECandidate()
+        end
+        return
+    end
     local macro = self:BuildMacroText() or ""
     local eb = self.editBox
     if opensPanel(self:GetText()) and self.gameBack and eb and eb:HasFocus() then
@@ -364,6 +381,10 @@ end
 -- Runs after the secure click: once the game sent the message, clear it
 -- (the chat stays open for the next message; B closes it)
 function CK:FinishSend(down)
+    if self.imeSendHandled then
+        if down ~= true then self.imeSendHandled = nil end
+        return
+    end
     local method = self:GetMethod()
     if method.SendDone and method:SendDone(down) then return end
     local text = self:GetText()
@@ -397,7 +418,7 @@ function CK:PositionSendButton()
     s:ClearAllPoints()
     s:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", send:GetLeft(), send:GetBottom())
     s:SetSize(send:GetWidth(), send:GetHeight())
-    s:EnableMouse(self.db.settings.showActions and not self:GetMethod().noMouseRow)
+    s:EnableMouse(self.db.settings.showActions and (not self:GetMethod().noMouseRow or self:HasChineseInput()))
 end
 
 -- Override bindings can't change in combat: the keyboard (and its bindings)
@@ -443,7 +464,7 @@ function CK:UpdateCancelBinding()
     if not self.bindingsActive or self.standalone or InCombatLockdown() then return end
     if self:GetMethod().ownButtons then return end
     if self.padDown and self.padDown.PAD2 then return end
-    local want = self:GetText() ~= "" or self:InQuestList()
+    local want = self:GetText() ~= "" or self:InQuestList() or self:IsIMEComposing()
     if want == self.cancelBound then return end
     if want then
         bind(self.frame, "PAD2", bindingButtonName("PAD2"))
@@ -455,6 +476,7 @@ function CK:UpdateCancelBinding()
 end
 
 function CK:DisableButtons()
+    self.imeToggleAt = nil
     self.padDown = nil
     self.keyboardBinds = nil
     if not self.bindingsActive or InCombatLockdown() then return end

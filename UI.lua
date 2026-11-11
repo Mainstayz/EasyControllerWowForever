@@ -159,6 +159,7 @@ end
 
 -- Switch between the input methods, even while open
 function CK:SetInputMethod(key)
+    if self:HasChineseInput() and key ~= "wheel" and key ~= "stick" then return end
     if not CK.Methods[key] then return end
     self.db.settings.inputMethod = key
     if not self.frame then return end
@@ -303,6 +304,15 @@ function CK:BuildUI()
         b.label:SetPoint("RIGHT", -2, 0)
         b.label:SetWordWrap(false)
         b:SetScript("OnClick", function() CK:AcceptSuggestion(n) end)
+        b:SetScript("OnEnter", function(s)
+            local word = CK.state.suggestions[n]
+            if word and CK:IsIMEComposing() then
+                GameTooltip:SetOwner(s, "ANCHOR_TOP")
+                GameTooltip:SetText(word, 1, 1, 1)
+                GameTooltip:Show()
+            end
+        end)
+        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
         b:Hide()
         f.sugg[n] = b
     end
@@ -328,6 +338,30 @@ function CK:BuildUI()
     pchip:SetScript("OnLeave", function() GameTooltip:Hide() end)
     pchip:SetScript("OnClick", function() CK.Phrases:OpenFromKeyboard() end)
     f.phrasesChip = pchip
+
+    -- Chinese preedit is separate from the message preview. The toggle,
+    -- literal-code button and candidate arrows also work with touch input.
+    f.imeBar = CK.NewFrame("Frame", nil, f)
+    well(f.imeBar)
+    f.imeCode = text(f.imeBar, 14)
+    f.imeCode:SetJustifyH("LEFT")
+    f.imeCode:SetWordWrap(false)
+    f.imeToggle = buildButton(f, L.IME_HAN, function() CK:ToggleIMELatin() end)
+    f.imeToggle:SetScript("OnEnter", function(s)
+        GameTooltip:SetOwner(s, "ANCHOR_TOP")
+        GameTooltip:SetText(L.IME_TOGGLE_TIP, 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    f.imeToggle:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    f.imeRaw = buildButton(f, L.IME_RAW, function() CK:CommitIMERaw() end)
+    f.imeRaw:SetScript("OnEnter", function(s)
+        GameTooltip:SetOwner(s, "ANCHOR_TOP")
+        GameTooltip:SetText(L.IME_RAW_TIP, 1, 1, 1)
+        GameTooltip:Show()
+    end)
+    f.imeRaw:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    f.imePrev = buildButton(f, "<", function() CK:ChangeIMEPage(-1) end)
+    f.imeNext = buildButton(f, ">", function() CK:ChangeIMEPage(1) end)
 
     -- Input methods, each in its own area (only the active one is shown)
     for _, method in pairs(CK.Methods) do
@@ -479,18 +513,32 @@ function CK:Layout()
     place(f.badge, f, w - 100, 21, 58, 18)
     place(f.grip, f, w - 38, 17, 26, 26)
 
-    place(f.sbar, f, 8, 58, w - 16, 28)
-    place(f.lbGlyph, f, 12, 61, 22, 22)
-    place(f.rbGlyph, f, w - 34, 61, 22, 22)
+    local chinese = self:HasChineseInput()
+    local sy, sh = chinese and 100 or 58, chinese and 44 or 28
+    local areaY = chinese and 150 or AREA_Y
+    place(f.imeBar, f, 8, 58, w - 16, 38)
+    place(f.imeToggle, f, 12, 60, 68, 34)
+    place(f.imeCode, f, 88, 61, w - 170, 32)
+    place(f.imeRaw, f, w - 74, 60, 62, 34)
+    f.imeBar:SetShown(chinese)
+    f.imeToggle:SetShown(chinese)
+    f.imeRaw:SetShown(chinese)
+    place(f.sbar, f, 8, sy, w - 16, sh)
+    place(f.lbGlyph, f, 12, sy + (sh - 22) / 2, 22, 22)
+    place(f.rbGlyph, f, w - 34, sy + (sh - 22) / 2, 22, 22)
+    place(f.imePrev, f, 12, sy + 2, 36, sh - 4)
+    place(f.imeNext, f, w - 48, sy + 2, 36, sh - 4)
     local chip = self.db.settings.phrasesChip ~= false
-    place(f.phrasesChip, f, w - 66, 59, 28, 26)
-    f.suggWidth = w - 76 - (chip and 32 or 0)
+    place(f.phrasesChip, f, w - 66, sy + 2, 28, sh - 4)
+    f.suggX, f.suggY, f.suggHeight = chinese and 52 or 38, sy, sh
+    f.suggWidth = chinese and (w - 104) or (w - 76 - (chip and 32 or 0))
     self:LayoutSuggestions()
+    self:UpdateIMEBar()
 
     for _, m in pairs(CK.Methods) do m.area:SetShown(m == method) end
-    place(method.area, f, (w - method.areaWidth) / 2, AREA_Y, method.areaWidth, mh)
+    place(method.area, f, (w - method.areaWidth) / 2, areaY, method.areaWidth, mh)
 
-    local cy = AREA_Y + mh + 4
+    local cy = areaY + mh + 4
     place(f.cbar, f, 8, cy, w - 16, 26)
     place(f.chanLeft, f, 12, cy + 2, 22, 22)
     place(f.chanRight, f, w - 34, cy + 2, 22, 22)
@@ -504,16 +552,17 @@ function CK:Layout()
 
     -- Mouse buttons row is optional (never under the daisywheel): when
     -- hidden, the help band moves up
-    local show = self.db.settings.showActions and not method.noMouseRow
+    local show = self.db.settings.showActions and (not method.noMouseRow or chinese)
     local ay = cy + 30
+    local actionHeight = chinese and 36 or 26
     local sx = (w - 16) / 324
     for _, a in ipairs(ACTIONS) do
         local b = f.actions[a[1]]
-        place(b, f, 8 + (a[3] - 8) * sx, ay, a[4] * sx, 26)
+        place(b, f, 8 + (a[3] - 8) * sx, ay, a[4] * sx, actionHeight)
         b:SetShown(show)
     end
 
-    local hy = show and (ay + 28) or (cy + 26)
+    local hy = show and (ay + actionHeight + 2) or (cy + 26)
     place(f.help, f, 0, hy, w, 48)
     place(f.helpBand, f.help, 0, 4, w, 40)
     place(f.helpFilet1, f.help, 0, 0, w, 8)
@@ -537,7 +586,7 @@ function CK:UpdateHelp()
     if not f then return end
     local list = self:GetMethod():Help()
     list[#list + 1] = { "DPAD_DOWN", L.HELP_CHANNEL }
-    list[#list + 1] = { "DPAD_LR", L.HELP_PICK }
+    list[#list + 1] = { "DPAD_LR", self:HasChineseInput() and L.IME_SELECT_HELP or L.HELP_PICK }
     for n, e in ipairs(f.helpEntries) do
         local h = list[n]
         e.key = h and h[1]
@@ -655,6 +704,8 @@ function CK:UpdateBadge()
         label = L.BADGE_SHIFT
     elseif state.layer == "symbols" then
         label = L.SYMBOLS
+    elseif self:HasChineseInput() then
+        label = self.db.settings.chineseLatin and L.IME_LATIN or L.IME_HAN
     end
     badge:SetShown(label ~= nil)
     if label then
@@ -700,6 +751,12 @@ function CK:UpdateRows()
     self:SetGlyph(f.lbGlyph, channels and "DPAD_UP" or "DPAD_LEFT")
     self:SetGlyph(f.rbGlyph, "DPAD_RIGHT")
     f.rbGlyph:SetShown(not channels)
+    if self:IsIMEComposing() then
+        f.lbGlyph:Hide()
+        f.rbGlyph:Hide()
+    else
+        f.lbGlyph:Show()
+    end
     -- A field of the game (Fields.lua): the channels do nothing there
     if self.field then
         for _, b in ipairs(f.channels) do b:SetAlpha(0.25) end
@@ -736,6 +793,19 @@ function CK:LayoutSuggestions()
     if not (f and f.suggWidth and self.state) then return end
     local list, total = self.state.suggestions, f.suggWidth
     local quests = self.InQuestList and self:InQuestList()
+    local composing = self:IsIMEComposing()
+    for _, b in ipairs(f.sugg) do b.label:SetWordWrap(composing) end
+    if composing then
+        -- Fixed cells keep every candidate on the current IME page reachable.
+        -- Long phrases wrap; their full text is also available on hover.
+        local count = math.min(#list, #f.sugg)
+        local width = (total - SUGG_GAP * (count - 1)) / math.max(1, count)
+        for i = 1, count do
+            place(f.sugg[i], f, (f.suggX or SUGG_X) + (i - 1) * (width + SUGG_GAP),
+                (f.suggY or 58) + 2, width, (f.suggHeight or 28) - 4)
+        end
+        return
+    end
     local widths, sum, count = {}, 0, 0
     for i = 1, math.min(#list, #f.sugg) do
         f.suggMeasure:SetText(list[i])
@@ -751,12 +821,41 @@ function CK:LayoutSuggestions()
     end
     if count == 0 then return end
     local room = total - SUGG_GAP * (count - 1)
-    local x = SUGG_X
+    local x = f.suggX or SUGG_X
     for i = 1, count do
         local width = sum <= room and widths[i] + (room - sum) / count or widths[i] * room / sum
-        place(f.sugg[i], f, x, 59, width, 26)
+        place(f.sugg[i], f, x, (f.suggY or 58) + 1, width, (f.suggHeight or 28) - 2)
         x = x + width + SUGG_GAP
     end
+end
+
+function CK:UpdateIMEBar()
+    local f = self.frame
+    if not (f and f.imeBar) then return end
+    local enabled, composing = self:HasChineseInput(), self:IsIMEComposing()
+    f.imeBar:SetShown(enabled)
+    f.imeToggle:SetShown(enabled)
+    f.imeRaw:SetShown(enabled)
+    f.imeToggle.label:SetText(self.db.settings.chineseLatin and L.IME_LATIN or L.IME_HAN)
+    f.imeToggle:SetActive(enabled and not self.db.settings.chineseLatin)
+    f.imeRaw:SetAlpha(composing and 1 or 0.45)
+    f.imeRaw:EnableMouse(composing)
+    f.imePrev:SetShown(enabled and composing)
+    f.imeNext:SetShown(enabled and composing)
+    local pages = self.imePages or 0
+    f.imePrev:SetAlpha(pages > 1 and 1 or 0.4)
+    f.imeNext:SetAlpha(pages > 1 and 1 or 0.4)
+    f.imePrev:EnableMouse(pages > 1)
+    f.imeNext:EnableMouse(pages > 1)
+    if composing then
+        local code = self.ChineseIME:GetDisplayCode()
+        local suffix = #self.state.suggestions > 0 and format("%d/%d", self.imePage or 1, pages)
+            or L.IME_NO_CANDIDATES
+        f.imeCode:SetText(code .. "  |cffc9b37e" .. suffix .. "|r")
+    else
+        f.imeCode:SetText(self.db.settings.chineseLatin and L.IME_LATIN_READY or L.IME_READY)
+    end
+    if f.actions then f.actions.Send.label:SetText(composing and L.IME_CONFIRM or L.SEND) end
 end
 
 function CK:UpdateSuggestions()

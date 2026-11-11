@@ -3,6 +3,7 @@
 ## IconTexture: Interface\AddOns\EasyController\textures\ck_icon
 ## Notes: Gamepad play made easy on WoW Forever: chat keyboard with word prediction, gamepad mapping and back paddles, wheels, quest items, better items.
 ## Notes-frFR: Le jeu à la manette simplifié sur WoW Forever : clavier de chat avec prédiction, mappage manette et palettes arrière, roues, objets de quête, meilleurs objets.
+## Notes-zhCN: 掌机手柄与触屏聊天键盘，支持离线自然码双拼中文输入、候选翻页、按键映射和物品轮盘。
 ## Author: moust4ki
 ## Version: 1.20.0
 ## SavedVariables: ControllerKeyboardDB, ControllerKeyboardPrices
@@ -14,6 +15,7 @@ Locales\frFR.lua
 Locales\deDE.lua
 Locales\esES.lua
 Locales\itIT.lua
+Locales\zhCN.lua
 Core.lua
 Dict_frFR.lua
 Dict_frFR_next.lua
@@ -22,7 +24,10 @@ Dict_deDE.lua
 Dict_esES.lua
 Dict_itIT.lua
 Dict_WoW.lua
+Dict_zhCN.lua
 Predict.lua
+ChineseIME.lua
+ChineseInput.lua
 Glyphs.lua
 Reticle.lua
 Range.lua

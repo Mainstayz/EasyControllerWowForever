@@ -13,6 +13,13 @@ CK.FONTS = {
 }
 
 function CK:GetFontPath()
+    -- Friz/Morpheus lack Chinese glyphs. Use the client's multilingual font
+    -- for Chinese input (and its translated controls), including the preview.
+    if GetLocale() == "zhCN" or GetLocale() == "zhTW" then
+        return STANDARD_TEXT_FONT or (ChatFontNormal and ChatFontNormal:GetFont()) or "Fonts\\ARKai_T.TTF"
+    elseif self:HasChineseInput() then
+        return "Fonts\\ARKai_T.TTF"
+    end
     local key = self.db and self.db.settings.font
     for _, font in ipairs(CK.FONTS) do
         if font.key == key then
@@ -408,6 +415,9 @@ local function inputRows(b)
     if keyboardOff(b) then return end
     local s = settings()
     b.header(L.SEC_INPUT)
+    b.choice({ id = "k_chinese", label = L.IME_NAME, tip = L.IME_TIP,
+        text = function() return s.chineseInput == "ziranma" and L.IME_ZIRANMA or L.IME_OFF end,
+        step = function() CK:SetChineseInput(s.chineseInput == "ziranma" and "off" or "ziranma") end })
     b.choice({ id = "k_method", label = L.OPT_METHOD, tip = L.TIP_METHOD,
         text = function() return METHODS[indexOf(METHODS, s.inputMethod)].name end,
         step = function(d)
@@ -542,7 +552,8 @@ local function keyboardPositionRows(b)
             CK:UpdateLock()
         end })
     -- The split keyboard's only (the daisywheel has none)
-    b.check({ id = "k_mouse", label = L.LBL_MOUSE_BUTTONS, tip = L.OPT_ACTIONS, disabled = s.inputMethod ~= "stick",
+    b.check({ id = "k_mouse", label = L.LBL_MOUSE_BUTTONS, tip = L.OPT_ACTIONS,
+        disabled = s.inputMethod ~= "stick" and not CK:HasChineseInput(),
         get = function() return s.showActions end,
         set = function(v)
             s.showActions = v

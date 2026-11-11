@@ -123,6 +123,9 @@ local DEFAULTS = {
     extraSymmetric = true,
     badgePlace = "outer",    -- "R4" on the extra buttons: outer / top / bottom / left / right / hidden
     inputMethod = "wheel",   -- "wheel" (daisywheel) or "stick" (split keyboard)
+    -- Offline Natural Code (Ziranma) double pinyin; available on every client.
+    chineseInput = GetLocale() == "zhCN" and "ziranma" or "off",
+    chineseLatin = false,
     petalRings = true,       -- daisywheel: a ring around each group of 4 characters
     kbLayout = ({ frFR = "azerty", deDE = "qwertz", esES = "qwerty_es", esMX = "qwerty_es",
         itIT = "qwerty_it" })[GetLocale()] or "qwerty",
@@ -392,6 +395,7 @@ CK.ACCENTS = {
     de = { "ä", "ö", "ü", "ß", "?", "!", "'", "-", "€", "&", "§", "_" },
     es = { "á", "é", "í", "ó", "ú", "ñ", "ü", "¿", "¡", "'", "-", "ç" },
     it = { "à", "è", "é", "ì", "ò", "ù", "ó", "í", "ú", "'", "?", "!" },
+    zh = { "，", "。", "？", "！", "、", "：", "；", "（", "）", "“", "”", "…" },
 }
 
 function CK:GetLanguage()
@@ -403,6 +407,7 @@ function CK:GetLanguage()
 end
 
 function CK:Accents()
+    if self:HasChineseInput() and not self.db.settings.chineseLatin then return CK.ACCENTS.zh end
     return CK.ACCENTS[self:GetLanguage().accents] or CK.ACCENTS.fr
 end
 

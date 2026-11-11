@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "EasyController: Lua 5.1 regressions",
+      "type": "process",
+      "command": "uv",
+      "args": ["run", "--no-project", "--python", "3.12", "--with", "lupa", "python", "tools/run_lua_tests.py"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "EasyController: Python and dictionary tests",
+      "type": "process",
+      "command": "uv",
+      "args": ["run", "--no-project", "--python", "3.12", "--with", "lupa", "python", "-B", "-X", "utf8", "-m", "unittest", "discover", "-s", "tools", "-p", "test_*.py", "-v"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "EasyController: wowlua check",
+      "type": "process",
+      "command": "${env:USERPROFILE}\\.wowlua\\bin\\wowlua.exe",
+      "args": ["check"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": []
+    },
+    {
+      "label": "EasyController: wowlua emulator tests",
+      "type": "process",
+      "command": "${env:USERPROFILE}\\.wowlua\\bin\\wowlua.exe",
+      "args": ["test", "--flavor", "camelot"],
+      "options": { "cwd": "${workspaceFolder}" },
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

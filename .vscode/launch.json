@@ -1,0 +1,22 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "EasyController: emulator (WoW Forever)",
+      "type": "wowlua",
+      "request": "launch",
+      "addon": true,
+      "flavor": "camelot",
+      "clock": "realtime",
+      "stopOnEntry": false
+    },
+    {
+      "name": "EasyController: debug Chinese input test",
+      "type": "wowlua",
+      "request": "launch",
+      "test": "tests/chinese-input.test.wowlua",
+      "flavor": "camelot",
+      "stopOnEntry": false
+    }
+  ]
+}

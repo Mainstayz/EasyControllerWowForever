@@ -164,6 +164,18 @@ local function slash(msg)
     elseif cmd == "learn" then
         s.learn = not s.learn
         CK:Print("learn: %s", onOff(s.learn))
+    elseif cmd == "ime" then
+        if arg == "ziranma" or arg == "off" then
+            CK:SetChineseInput(arg)
+        elseif arg == "latin" then
+            CK:SetChineseInput("ziranma")
+            CK:ToggleIMELatin()
+        else
+            CK:Print(L.IME_USAGE)
+            return
+        end
+        CK:Print(L.IME_STATUS, not CK:HasChineseInput() and L.IME_OFF
+            or (s.chineseLatin and L.IME_LATIN or L.IME_ZIRANMA))
     elseif cmd == "lang" then
         local key = arg == "both" and "fren" or arg
         for _, lang in ipairs(CK.LANGUAGES) do
@@ -300,6 +312,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2)
         local function safe(fn) xpcall(fn, geterrorhandler()) end
         -- This character's profile first: the modules read its settings
         safe(function() CK.Profiles:Init() end)
+        safe(function() CK:InitChineseInput() end)
         safe(function() CK.Predict:Load() end)
         safe(function() CK:HookChat() end)
         safe(function() CK:HookLinks() end)
@@ -336,6 +349,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2)
         -- whatever else fails: never saved with a character's in their place
         xpcall(function() CK.Profiles:Store() end, geterrorhandler())
         xpcall(function() CK.Predict:Prune() end, geterrorhandler())
+        xpcall(function() CK.ChineseIME:Prune() end, geterrorhandler())
     elseif event == "GAME_PAD_ACTIVE_CHANGED" then
         CK.gamepadActive = arg1
     elseif event == "PLAYER_REGEN_DISABLED" then

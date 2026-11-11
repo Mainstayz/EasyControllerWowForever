@@ -27,6 +27,14 @@ The interface is translated into English, French, German, Spanish and Italian, f
 client's language. Suggestions and keyboard layout also follow it by default: a German client gets
 QWERTZ and the German dictionary.
 
+Simplified Chinese input is available with an offline **Ziranma (自然码) double-pinyin IME**, using
+both gamepad keyboards or touch. Enable it with `/ec ime ziranma` (on by default on a Chinese client),
+then `/ec mode stick` for the full QWERTY keyboard. Type `nihk`, select **你好**, confirm with R3,
+Space/RB or A, then press A again to send. The D-pad moves through candidates and pages; B cancels
+only the unfinished code. The Chinese/EN and ABC buttons support English words. The keyboard's main
+controls are also translated into Simplified Chinese; other settings fall back to English.
+See the [Chinese input guide (中文操作说明)](docs/zhCN-input.md) for controls and the key map.
+
 ## Installation
 
 1. Download the repository (*Code > Download ZIP*) and extract it, or grab the zip from CurseForge.
@@ -683,7 +691,8 @@ In the configuration panel (RB + D-pad down, `/ec config`):
 | `/ec layout azerty\|qwerty\|qwertz\|es\|it` | split keyboard layout |
 | `/ec auto` | open automatically with the chat |
 | `/ec pad` | only open automatically when the gamepad is active |
-| `/ec learn` | turn learning on / off |
+| `/ec learn` | turn western word learning on / off |
+| `/ec ime ziranma\|latin\|off` | Chinese Ziranma double pinyin, direct English, or disable the IME |
 | `/ec lang fr\|en\|de\|es\|it\|both` | suggestion and accent language |
 | `/ec scale 0.8` | keyboard size |
 | `/ec invert` | invert the sticks vertical axis |
@@ -750,6 +759,20 @@ What is planned next (automation at merchants, better items in the bags...) is i
 
 ## Development
 
+VS Code users can run and debug the addon with the wowlua emulator; the workspace includes launch
+configurations, test tasks and a Chinese-input UI test. See the
+[VS Code validation guide (中文)](docs/vscode-validation.md) for F5, breakpoints and UI preview.
+
+Run the regression suites (Lupa is a development dependency only; Lua runs inside WoW in game):
+
+```bash
+python -B -m unittest discover -s tools -p 'test_*.py'
+uv run --no-project --python 3.12 --with lupa python tools/run_lua_tests.py
+```
+
+For the Chinese dictionary's pinned sources, licenses and reproducible build, see
+[LICENSE-ChineseData.md](LICENSE-ChineseData.md). Its builder uses only the Python standard library.
+
 Textures (PNG sources in `design/textures/`, converted to TGA for the game; the shapes and the
 controller silhouette are drawn by `render_textures.py`):
 
@@ -791,8 +814,9 @@ changes.
 
 ## License
 
-Code under the MIT license (see `LICENSE`). The `Dict_*.lua` word lists (French, English, German,
-Spanish, Italian) are derived from FrequencyWords (Hermit Dave) and remain under the
+Code under the MIT license (see `LICENSE`). Chinese dictionary attribution and licensing are in
+[LICENSE-ChineseData.md](LICENSE-ChineseData.md). The western `Dict_*.lua` word lists (French, English,
+German, Spanish, Italian) are derived from FrequencyWords (Hermit Dave) and remain under the
 [CC-BY-SA-4.0](https://creativecommons.org/licenses/by-sa/4.0/) license. `ConsolePort.lua` and
 `textures/consoleport/` come from [ConsolePort](https://github.com/seblindfors/ConsolePort) by
 Sebastian Lindfors, modified, under the Artistic License 2.0 (`LICENSE-ConsolePort.md`).

@@ -26,6 +26,26 @@
   free again.
 - **Autorun's arrow points up** (reported): the L3 icon showed the ping's arrow pointing down.
 
+## 1.20.0-beta1 (Chinese input)
+
+## 1.20.0-beta1
+
+- **Offline Simplified Chinese with Ziranma double pinyin** for the daisywheel and split keyboard,
+  using the gamepad or touch. A separate preedit bar shows the unfinished code; the D-pad selects
+  and pages through candidates, R3 / RB / A confirms them, and only a separate A sends the message.
+  Shorter words can be committed while the remaining code stays ready to convert. Candidate
+  choices learn locally with a bounded history. English mode, literal-code commit and Chinese
+  punctuation are included; commands stay literal. Enable with `/ec ime ziranma`, or Keyboard ›
+  Input › Chinese input (on by default on a zhCN client).
+- **Touch controls and Chinese keyboard labels**: larger candidate and action rows, Chinese/EN
+  switch, ABC and page buttons. Chinese mode uses QWERTY for the split keyboard and the game's
+  Chinese font. Interrupted drafts retain unfinished codes; single-line game fields and addon
+  prompts receive only committed text.
+- A reproducible dictionary builder with pinned public sources and attribution, a Chinese usage
+  guide, and Lua 5.1 regressions for composition and input/send integration.
+- This is a local test build; the gamepad focus, protected actions, fonts and touch mapping still
+  need validation in WoW Forever.
+
 ## 1.19.4
 
 - **Move / size works again with the game's latest build** (reported: errors over and over while

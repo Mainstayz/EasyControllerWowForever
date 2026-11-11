@@ -1,0 +1,49 @@
+{
+  "$schema": "https://raw.githubusercontent.com/DomenikIrrgang/wowlua/main/schema/wowlua-0.1.json",
+  "package": {
+    "name": "easy-controller-forever",
+    "version": "1.20.0-beta1",
+    "description": "WoW Forever gamepad keyboard with offline Ziranma Chinese input",
+    "license": "MIT",
+    "wowlua": "^0.13"
+  },
+  "addon": {
+    "name": "EasyController",
+    "title": "Easy Controller - Forever",
+    "saved-variables": ["ControllerKeyboardDB"]
+  },
+  "flavors": {
+    "camelot": {
+      "interface": [16001],
+      "client-folders": ["_cn_beta_", "_classic_beta_", "_forever_"]
+    }
+  },
+  "build": {
+    "src": ".",
+    "out": "dist/wowlua",
+    "exclude": ["tools/**", "design/**", "dist/**", ".vscode/**", ".git/**"],
+    "assets": ["textures/**"],
+    "load-order": [
+      "Locales/enUS.lua", "Locales/frFR.lua", "Locales/deDE.lua", "Locales/esES.lua",
+      "Locales/itIT.lua", "Locales/zhCN.lua", "Core.lua",
+      "Dict_frFR.lua", "Dict_frFR_next.lua", "Dict_enUS.lua", "Dict_deDE.lua",
+      "Dict_esES.lua", "Dict_itIT.lua", "Dict_WoW.lua", "Dict_zhCN.lua", "Predict.lua",
+      "ChineseIME.lua", "ChineseInput.lua", "Glyphs.lua", "Reticle.lua", "Range.lua",
+      "Message.lua", "UI.lua", "Wheel.lua", "StickKeyboard.lua", "ConsolePort.lua",
+      "Input.lua", "Fields.lua", "QuestItems.lua", "QuestLinks.lua", "Paddles.lua",
+      "Mapping.lua", "Toggle.lua", "Vibration.lua", "Supplies.lua", "Upgrades.lua",
+      "Automation.lua", "ConsumableWheel.lua", "ConfigKit.lua", "Phrases.lua",
+      "MinimapNodes.lua", "MinimapLabels.lua", "ConfigWindow.lua", "MyWheels.lua",
+      "MapWindow.lua", "Options.lua", "Guide.lua", "Profiles.lua", "Chat.lua", "Bindings.xml"
+    ]
+  },
+  "profiles": {
+    "dev": { "instrument": "none", "dev-console": false, "monitor": false, "capture-errors": false },
+    "test": { "instrument": "none", "dev-console": false, "monitor": false, "capture-errors": false }
+  },
+  "test": {
+    "blizzard-ui": true,
+    "platform": "windows",
+    "screen": { "width": 1280, "height": 800 }
+  }
+}

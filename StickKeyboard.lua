@@ -246,6 +246,7 @@ end
 
 function M:ActiveSet()
     if CK.state.layer == "symbols" then return self.sets.symbols end
+    if CK:HasChineseInput() then return self.sets.qwerty end
     return self.sets[CK.db.settings.kbLayout] or self.sets.azerty
 end
 

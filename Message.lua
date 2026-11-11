@@ -58,6 +58,7 @@ function CK:OnChatTextChanged(eb, userInput)
     if sent and text:sub(1, #sent) ~= sent then self.sentBoxText, sent = nil, nil end
     if not userInput then return end
     if sent then text = text:sub(#sent + 1):gsub("^ +", "") end
+    self:ResetIMEComposition()
     self.buffer = text
     self:Refresh()
 end
@@ -80,6 +81,7 @@ function CK:OpenStandalone()
     if not self.frame then self:BuildUI() end
     if self:IsOpen() then return end
     self.standalone = true
+    self:ResetIMEComposition()
     self.buffer = ""
     self.chatAttrs = { chatType = "SAY" }
     self.editBox = nil
@@ -174,7 +176,10 @@ function CK:Refresh()
     local n = self.db.settings.numSuggestions
     local _, spaces = text:gsub(" ", "")
     self.state.commandMode = text:sub(1, 1) == "/" and spaces <= 1
-    if self:InQuestList() then
+    if self:IsIMEComposing() then
+        self.state.commandMode = false
+        self.state.suggestions, self.imePage, self.imePages = self.ChineseIME:Candidates(n)
+    elseif self:InQuestList() then
         -- Quest links: the suggestions row lists the quests in progress
         self.state.suggestions = self:QuestListSuggestions(n)
     elseif self.state.commandMode then
@@ -182,6 +187,8 @@ function CK:Refresh()
     elseif self:WhisperNameMode() then
         -- Typing the name of a /w (names may hold a space): suggest people
         self.state.suggestions = self:QueryNames(text, n)
+    elseif self:UsesChineseInput() then
+        self.state.suggestions = {}
     else
         local prefix = wordTail(text)
         local ctx = CK.Predict:Context(text:sub(1, #text - #prefix))
@@ -192,6 +199,7 @@ function CK:Refresh()
         self.state.phrasesChip = false
     end
     self:UpdateSuggestions()
+    self:UpdateIMEBar()
     self:UpdateChannels()
     self:UpdateRows()
     self:UpdateCancelBinding()
@@ -212,7 +220,20 @@ end
 -- Type one character of the active input method (shift applies once)
 function CK:TypeChar(ch)
     if not ch then return end
-    self:InsertText(self:DisplayChar(ch))
+    if self:UsesChineseInput() and ch:match("^[a-zA-Z]$") then
+        self.state.questList = nil
+        self.state.activeRow = "suggestions"
+        self.ChineseIME:Feed(ch:lower())
+        self:Refresh()
+    else
+        -- Punctuation/numbers confirm complete syllables first. If a code is
+        -- incomplete, leave it visible for correction rather than losing it.
+        while self:IsIMEComposing() do
+            if not self:AcceptIMECandidate() then return end
+        end
+        if self:UsesChineseInput() then ch = self.CHINESE_PUNCTUATION[ch] or ch end
+        self:InsertText(self:DisplayChar(ch))
+    end
     if self.state.shift and not self.state.caps then
         self.state.shift = false
         self:UpdateMethod()
@@ -220,10 +241,18 @@ function CK:TypeChar(ch)
 end
 
 function CK:Space()
+    if self:IsIMEComposing() then
+        self:AcceptIMECandidate()
+        return
+    end
     self:InsertText(" ")
 end
 
 function CK:Backspace()
+    if self.ChineseIME and self.ChineseIME:Backspace() then
+        self:Refresh()
+        return
+    end
     local text = self:GetText()
     -- Nothing left to delete in a /w message: back to choosing the name
     if text == "" and self:GetChatAttr("chatType") == "WHISPER" and not self:GetChatAttr("reply")
@@ -244,6 +273,10 @@ end
 -- B with a message: empty it. With an empty message B belongs to the game,
 -- which closes the chat (see CK:UpdateCancelBinding)
 function CK:CancelMessage()
+    if self:IsIMEComposing() then
+        self:CancelIMEComposition()
+        return
+    end
     if self:InQuestList() then
         self:CloseQuestList()
         return
@@ -252,6 +285,10 @@ function CK:CancelMessage()
 end
 
 function CK:DeleteWord()
+    if self:IsIMEComposing() then
+        self:CancelIMEComposition()
+        return
+    end
     local text = self:GetText():gsub("[ \t\r\n]+$", "")
     text = text:gsub("[^ \t\r\n]+$", "")
     self:SetText(text)
@@ -261,10 +298,12 @@ end
 -- not in a prompt (a name for a wheel) or a field of the game (no channel)
 function CK:PhrasesChipShown()
     return self.db.settings.phrasesChip ~= false and CK.Phrases ~= nil and not self.prompt and not self.field
+        and not self:IsIMEComposing()
         and not (self.InQuestList and self:InQuestList())
 end
 
 function CK:AcceptSuggestion(index)
+    if self:IsIMEComposing() then return self:AcceptIMECandidate(index) end
     if not index and self.state.phrasesChip and self:PhrasesChipShown() then
         CK.Phrases:OpenFromKeyboard()
         return true
@@ -299,6 +338,18 @@ end
 function CK:SelectSuggestion(delta)
     local state = self.state
     local n = #state.suggestions
+    if self:IsIMEComposing() then
+        if n == 0 then return end
+        local at = (state.selected or 1) + delta
+        if at < 1 or at > n then
+            self:ChangeIMEPage(delta < 0 and -1 or 1)
+            state.selected = at < 1 and math.max(1, #state.suggestions) or 1
+        else
+            state.selected = at
+        end
+        self:UpdateSuggestions()
+        return
+    end
     local chip = self:PhrasesChipShown()
     local count = n + (chip and 1 or 0)
     if count == 0 then return end
@@ -663,6 +714,7 @@ end
 -- Only reached when the secure button doesn't take the mouse (the mouse
 -- buttons row's option): A sends. A prompt: confirmed.
 function CK:Send()
+    if self:IsIMEComposing() then return self:AcceptIMECandidate() end
     if self.prompt then return self:FinishPrompt(true) end
     self:Print(L.SEND_COMBAT)
 end
@@ -676,6 +728,7 @@ function CK:OpenPrompt(title, text, onDone, box)
     if self:IsOpen() then self:Close("prompt") end
     self.prompt = { title = title, onDone = onDone, box = box }
     self.standalone = true
+    self:ResetIMEComposition()
     self.buffer = text or ""
     self.chatAttrs = { chatType = "SAY" }
     self.editBox = nil
@@ -692,6 +745,10 @@ function CK:OpenPrompt(title, text, onDone, box)
 end
 
 function CK:FinishPrompt(confirmed)
+    if confirmed and self:IsIMEComposing() then
+        self:AcceptIMECandidate()
+        return
+    end
     local prompt = self.prompt
     if not prompt then return end
     local text = self:GetText()
@@ -739,9 +796,12 @@ function CK:TakeDraft(chatText, eb, attrs)
     end
     self.draft = nil
     if GetTime() - draft.time > DRAFT_TIME then return chatText end
-    -- The chat opened on a command (/w, reply...), or already holds the text
-    if chatText:sub(1, 1) == "/" or chatText:sub(1, #draft.text) == draft.text then return chatText end
+    -- The chat opened on a command (/w, reply...): do not mix it with a draft.
+    if chatText:sub(1, 1) == "/" then return chatText end
+    if draft.imeCode and self:HasChineseInput() then self.ChineseIME:SetCode(draft.imeCode) end
+    if draft.text ~= "" and chatText:sub(1, #draft.text) == draft.text then return chatText end
     if chatText == "" then return draft.text end
+    if draft.text == "" then return chatText end
     local sep = draft.text:match("[ \t]$") and "" or " "
     return draft.text .. sep .. chatText
 end
@@ -754,20 +814,22 @@ function CK:Open(eb)
     -- Keep a message typed with the mouse when the chat is reopened;
     -- otherwise start from the draft and what the chat holds (physical
     -- keyboard, a link the game opened the chat with)
-    local keep = self.standalone and self.buffer and self.buffer ~= ""
+    local keep = self.standalone and ((self.buffer and self.buffer ~= "") or self:IsIMEComposing())
     if keep then
         local before = self.chatAttrs or {}
         local chatType = eb:GetAttribute("chatType")
         local whisper = function(t) return t == "WHISPER" or t == "BN_WHISPER" end
         if (whisper(chatType) or whisper(before.chatType))
             and not (before.chatType == chatType and before.tellTarget == eb:GetAttribute("tellTarget")) then
-            self.draft = { text = self.buffer, time = GetTime(), chatType = before.chatType, target = before.tellTarget }
+            self.draft = { text = self.buffer or "", time = GetTime(), chatType = before.chatType,
+                target = before.tellTarget, imeCode = self.ChineseIME:GetCode() }
             keep = false
         end
     end
     -- The channel kept (option), the chat opened by the game on its usual one
     local sticky = not keep and self:StickyFor(eb) or nil
     if not keep then
+        self:ResetIMEComposition()
         self.buffer = self:TakeDraft(eb:GetText() or "", eb, sticky)
     end
     self.standalone = false
@@ -808,10 +870,12 @@ function CK:Close(reason)
     local forPanel = self.closingForPanel
     self.closingForPanel = nil
     if not prompt and not forPanel and KEEP_DRAFT[reason] and self.db.settings.features.drafts
-        and self.buffer and self.buffer:find("[^ \t\r\n]") then
-        self.draft = { text = self.buffer, time = GetTime(),
+        and ((self.buffer and self.buffer:find("[^ \t\r\n]")) or self:IsIMEComposing()) then
+        self.draft = { text = self.buffer or "", time = GetTime(), imeCode = self.ChineseIME:GetCode(),
             chatType = self:GetChatAttr("chatType"), target = self:GetChatAttr("tellTarget") }
     end
+    self:ResetIMEComposition()
+    self.imeSendHandled = nil
     self.standalone = false
     self.buffer = nil
     self.chatAttrs = nil
