@@ -14,8 +14,9 @@ CK.FONTS = {
 
 function CK:GetFontPath()
     -- Friz/Morpheus lack Chinese glyphs. Use the client's multilingual font
-    -- for Chinese input (and its translated controls), including the preview.
-    if GetLocale() == "zhCN" or GetLocale() == "zhTW" then
+    -- for Chinese controls (the client's or the language picked) and for
+    -- Chinese input, including the preview.
+    if self:UiIsChinese() then
         return STANDARD_TEXT_FONT or (ChatFontNormal and ChatFontNormal:GetFont()) or "Fonts\\ARKai_T.TTF"
     elseif self:HasChineseInput() then
         return "Fonts\\ARKai_T.TTF"
@@ -169,6 +170,31 @@ end
 local function lookRows(b)
     local s = settings()
     b.header(L.SEC_LOOK)
+    -- The addon's own language (the game's stays as it is): the labels are
+    -- made when the files load, so the reload button under it appears
+    b.choice({ id = "ui_lang", label = L.LBL_UI_LANG, tip = L.TIP_UI_LANG,
+        text = function()
+            local key = s.uiLanguage or "auto"
+            -- "auto": what the interface has now, which is the client's
+            if key == "auto" then return format(L.UI_LANG_AUTO, CK.UiLocaleName(CK.uiLocale)) end
+            return CK.UiLocaleName(key)
+        end,
+        step = function(d)
+            local choices, key = CK.UI_CHOICES, s.uiLanguage or "auto"
+            local index = 1
+            for i, name in ipairs(choices) do
+                if name == key then index = i end
+            end
+            CK:SetUiLanguage(choices[(index - 1 + d) % #choices + 1])
+        end })
+    local wanted = s.uiLanguage or "auto"
+    if wanted ~= "auto" and wanted ~= CK.uiLocale then
+        b.button({ id = "ui_lang_reload", label = L.UILANG_RELOAD, indent = true, tip = L.TIP_UILANG_RELOAD,
+            verb = L.V_RELOAD, func = function()
+                local reload = C_UI and C_UI.Reload or ReloadUI
+                reload()
+            end })
+    end
     -- Picked: the game's own icons too (Glyphs.lua)
     local text = function() return GLYPH_STYLES[indexOf(GLYPH_STYLES, s.glyphStyle)].name end
     local function step(d)

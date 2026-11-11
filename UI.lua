@@ -50,7 +50,7 @@ local fontStrings = {}
 local function text(parent, size, layer)
     local fs = parent:CreateFontString(nil, layer or "OVERLAY")
     fs:SetFont(CK:GetFontPath(), size, "")
-    if fs.SetNonSpaceWrap and (GetLocale() == "zhCN" or GetLocale() == "zhTW" or CK:HasChineseInput()) then
+    if fs.SetNonSpaceWrap and (CK:UiIsChinese() or CK:HasChineseInput()) then
         fs:SetNonSpaceWrap(true)
     end
     fs:SetShadowOffset(1, -1)

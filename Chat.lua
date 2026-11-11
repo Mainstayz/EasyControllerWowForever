@@ -182,6 +182,20 @@ local function slash(msg)
             if lang.key == key then CK:SetLanguage(key) end
         end
         CK:Print(L.LANG_SET, CK:GetLanguage().name)
+    elseif cmd == "uilang" or cmd == "ui" then
+        -- The addon's own language (the game's interface stays as it is):
+        -- kept now, in place at the next load (the panel offers the reload)
+        local keys = { auto = "auto", en = "enUS", fr = "frFR", de = "deDE",
+            es = "esES", it = "itIT", zh = "zhCN" }
+        local key = keys[arg]
+        if arg ~= "" and not key then
+            CK:Print(L.UILANG_USAGE)
+            return
+        end
+        if key then CK:SetUiLanguage(key) end
+        local current = s.uiLanguage or "auto"
+        CK:Print(L.UILANG_SET, current == "auto"
+            and format(L.UI_LANG_AUTO, CK.UiLocaleName(CK.uiLocale)) or CK.UiLocaleName(current))
     elseif cmd == "scale" then
         local v = tonumber(arg)
         if v and v >= 0.4 and v <= 2 then

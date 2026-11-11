@@ -47,7 +47,7 @@ for ch in ("nihk"):gmatch(".") do ControllerKeyboard:TypeChar(ch) end
 
 wowlua 模拟器测试覆盖：键盘打开、触屏式候选点击、手柄 A 先选字不发送、B 取消编码并保留文字、中英文切换、设置界面点击启用自然码 / 双摇杆键盘，以及中文设置、引导和键盘截图。
 
-`tests/mocks/chinese-client.wowlua` 在测试加载插件前模拟简体中文客户端，使翻译资源按实际加载流程生效。实际游戏界面语言仍跟随客户端；开启自然码只改变输入法，不改变界面语言。
+`tests/mocks/chinese-client.wowlua` 在测试加载插件前模拟简体中文客户端，使翻译资源按实际加载流程生效。插件界面语言默认跟随客户端，也可在设置里主动切换（见 Home › Look 的“界面语言”与 `/ec uilang`）；开启自然码只改变输入法，不改变界面语言。
 
 VS Code 左侧“测试”视图会发现 `tests/chinese-input.test.wowlua` 和 `tests/localization.test.wowlua`，可以点 **Run Test** 或 **Debug Test**。现有 `tools/test_*.lua` 使用项目自己的 Lua 5.1 运行器，从任务菜单运行。
 

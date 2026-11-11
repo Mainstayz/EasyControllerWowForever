@@ -73,6 +73,67 @@ local function helpFont()
     ChatFontNormal:SetFont(original, size, flags)
 end
 
+@test("The interface language row picks another language and offers the reload")
+local function interfaceLanguageRow()
+    local ck = keyboard()
+    ck.db.settings.uiLanguage = "auto"
+    ck.Config:Open("home", 3)
+    local row = setting("ui_lang")
+    expect(row.label:GetText()).toBe("界面语言")
+    expect(row.value:GetText()).toBe("跟随客户端（简体中文）")
+    -- One press right: English picked, and the reload button under it
+    mock.click(row.right)
+    expect(ck.db.settings.uiLanguage).toBe("enUS")
+    expect(setting("ui_lang").value:GetText()).toBe("English")
+    expect(setting("ui_lang_reload") ~= nil).toBe(true)
+    -- Chinese again: the reload button goes (nothing left to load)
+    mock.click(setting("ui_lang").left)
+    expect(ck.db.settings.uiLanguage).toBe("auto")
+    expect(setting("ui_lang").value:GetText()).toBe("跟随客户端（简体中文）")
+end
+
+@test("The interface language row screenshot")
+local function interfaceLanguageScreenshot()
+    local ck = keyboard()
+    ck.db.settings.uiLanguage = "enUS"
+    ck.Config:Open("home", 3)
+    ck.Config.frame:ClearAllPoints()
+    ck.Config.frame:SetPoint("TOP", UIParent, "TOP", 0, 0)
+    mock.screenshot("ui-language", ck.Config.frame)
+    ck.db.settings.uiLanguage = "auto"
+end
+
+@test("The guide's first screen picks the interface language")
+local function guideLanguage()
+    local ck = keyboard()
+    ck.db.settings.uiLanguage = "auto"
+    ck.Guide:Open(1)
+    local function find(id: string): any
+        for _, c in ipairs(ck.Guide:Current().controls) do
+            if c.id == id then return c end
+        end
+    end
+    local pick = find("ui_lang")
+    expect(pick ~= nil).toBe(true)
+    expect(pick.frame.value:GetText()).toBe("跟随客户端（简体中文）")
+    -- Nothing to reload until a language is picked
+    local reload = find("ui_lang_reload")
+    expect(reload ~= nil).toBe(true)
+    expect(reload.frame:IsShown()).toBe(false)
+    -- One press to the right: English, and the reload offered
+    mock.click(pick.frame)
+    expect(ck.db.settings.uiLanguage).toBe("enUS")
+    expect(pick.frame.value:GetText()).toBe("English")
+    expect(reload.frame:IsShown()).toBe(true)
+    -- Back to the client's: nothing left to reload
+    pick.adjust(pick, -1)
+    ck.Guide:Render()
+    expect(ck.db.settings.uiLanguage).toBe("auto")
+    expect(reload.frame:IsShown()).toBe(false)
+    ck.Guide:SetSeen()
+    ck.Guide:Leave()
+end
+
 @test("Chinese settings screenshot")
 local function settingsScreenshot()
     local ck = keyboard()

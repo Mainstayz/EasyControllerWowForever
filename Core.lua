@@ -23,7 +23,42 @@ if not CK.L then
 end
 local L = CK.L
 
-for key, value in pairs(CK.LOCALES and CK.LOCALES[GetLocale()] or {}) do
+---------------------------------------------------------------------------
+-- The interface's own language (Look › Interface language, /ec uilang):
+-- the client's, unless another one was picked. Every translated file is
+-- loaded (TOC), so any of them can be put over English on any client; the
+-- labels are captured once, here, so a pick shows at the next load
+---------------------------------------------------------------------------
+CK.UI_LOCALES = { "enUS", "frFR", "deDE", "esES", "itIT", "zhCN" }
+-- The picks offered ("auto" first: the client's own, as on a new install)
+CK.UI_CHOICES = { "auto", "enUS", "frFR", "deDE", "esES", "itIT", "zhCN" }
+-- Each language's name in itself (never translated: picked, not read)
+CK.UI_LOCALE_NAMES = {
+    enUS = "English", frFR = "Français", deDE = "Deutsch",
+    esES = "Español", itIT = "Italiano", zhCN = "简体中文",
+}
+
+-- The file to put over English: the one picked, or the client's when none
+-- was picked or the picked one is unknown (a client we don't translate)
+function CK.UiLocaleKey(chosen, client)
+    if chosen and chosen ~= "auto" and CK.LOCALES and CK.LOCALES[chosen] then return chosen end
+    return client
+end
+
+-- Read from the saved variables (the game loads them before these files;
+-- rawget: the file itself only defines them later, inside functions)
+local savedDB = rawget(_G, "ControllerKeyboardDB")
+local savedLanguage = type(savedDB) == "table" and type(savedDB.settings) == "table"
+    and savedDB.settings.uiLanguage or nil
+CK.uiLocale = CK.UiLocaleKey(savedLanguage, GetLocale())
+
+-- Chinese controls (their font, their wrapping): the client's Chinese too,
+-- even when we have no translated file for it (zhTW)
+function CK:UiIsChinese()
+    return self.uiLocale == "zhCN" or self.uiLocale == "zhTW"
+end
+
+for key, value in pairs(CK.LOCALES and CK.LOCALES[CK.uiLocale] or {}) do
     L[key] = value
 end
 CK.LOCALES = nil
@@ -49,6 +84,10 @@ local DEFAULTS = {
     -- The keyboard for the game's other fields too (Fields.lua)
     openFields = true,
     learn = true,
+    -- The addon's own language: "auto" (the client's) or one of
+    -- CK.UI_LOCALES (Look › Interface language, /ec uilang; Load and
+    -- CleanEntries read it as well)
+    uiLanguage = "auto",
     -- Suggestions and keyboard layout follow the client's language by default
     lang = ({ frFR = "fr", deDE = "de", esES = "es", esMX = "es", itIT = "it" })[GetLocale()] or "en",
     maxWords = 8000,
@@ -241,6 +280,15 @@ function CK.CleanEntries(s)
         end
     end
     keep(s.myWheels.list, wheels)
+    -- The interface's language: a value we don't know (edited by hand, an
+    -- older file) goes back to the client's
+    if s.uiLanguage ~= nil and s.uiLanguage ~= "auto" then
+        local known = false
+        for _, name in ipairs(CK.UI_LOCALES) do
+            if s.uiLanguage == name then known = true end
+        end
+        if not known then s.uiLanguage = "auto" end
+    end
     -- The consumables wheel's kinds
     copyDefaults(DEFAULTS.wheel.categories, tbl(tbl(s, "wheel"), "categories"))
     -- The usable items' wheel's hidden items: { [item ID] = true / false }
@@ -423,6 +471,36 @@ function CK:SetLanguage(key)
     self:ApplyLanguage()
     CK.Predict:Load()
     if self.frame then self:UpdateMethod() end
+end
+
+---------------------------------------------------------------------------
+-- The interface's language (Look › Interface language, /ec uilang)
+---------------------------------------------------------------------------
+-- A name of the file picked for a key ("auto" apart: the client's)
+function CK.UiLocaleName(key)
+    return CK.UI_LOCALE_NAMES[key] or key
+end
+
+-- The pick kept; the labels themselves come at the next load (the panel
+-- offers the reload, as the game's own glyphs do). Chinese controls bring
+-- the Chinese input with them, unless it was chosen already (the reverse
+-- is left alone: English controls with Chinese input are a fair choice)
+function CK:SetUiLanguage(key)
+    local s = self.db and self.db.settings
+    if not s then return false end
+    local known = key == "auto"
+    if not known then
+        for _, name in ipairs(CK.UI_LOCALES) do
+            if key == name then known = true end
+        end
+    end
+    if not known then return false end
+    s.uiLanguage = key
+    local locale = key == "auto" and GetLocale() or key
+    if (locale == "zhCN" or locale == "zhTW") and s.chineseInput == "off" then
+        self:SetChineseInput("ziranma")
+    end
+    return true
 end
 
 -- Remove the last UTF-8 character of a string

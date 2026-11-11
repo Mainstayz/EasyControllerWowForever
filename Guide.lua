@@ -347,10 +347,49 @@ function G:BuildScreen1(s, f)
         help(f, 16, KC.cream, 40, y, 368):SetText(L["GUIDE_WELCOME_" .. i])
     end
     -- The panel's shortcut
-    local sc = frameAt(f, "Frame", 24, 404, 384, 58)
+    local sc = frameAt(f, "Frame", 24, 388, 384, 58)
     box(sc, KC.controlBg, 1, KC.line3, 1)
     text(sc, 15, KC.cream2, 14, 10):SetText(L.GUIDE_SHORTCUT)
     s.shortcut = help(sc, 14, KC.help, 14, 33, 356)
+    -- The addon's own language, picked here on a new install (asked): the
+    -- labels are made when the interface loads, so the pick shows after a
+    -- reload (the button beside it; the panel does the same)
+    text(f, 14, KC.help, 24, 456):SetText(L.LBL_UI_LANG)
+    local function languageKey() return settings().uiLanguage or "auto" end
+    local function languageText()
+        local key = languageKey()
+        -- "auto": the client's, which is what the interface has now
+        if key == "auto" then return format(L.UI_LANG_AUTO, CK.UiLocaleName(CK.uiLocale)) end
+        return CK.UiLocaleName(key)
+    end
+    local langSel = selector(s, f, 24, 474, 246, languageText, function(d)
+        local choices, key = CK.UI_CHOICES, languageKey()
+        local index = 1
+        for i, name in ipairs(choices) do
+            if name == key then index = i end
+        end
+        CK:SetUiLanguage(choices[(index - 1 + d) % #choices + 1])
+    end)
+    langSel.id = "ui_lang"
+    -- What that pick needs, in the place of the reload button it brings
+    local note = help(f, 13, KC.disabled, 280, 482, 128)
+    note:SetText(L.GUIDE_LANG_NOTE)
+    local reload = button(s, f, L.V_RELOAD, 280, 474, 128, 32, false, function()
+        local go = C_UI and C_UI.Reload or ReloadUI
+        go()
+    end)
+    reload.id = "ui_lang_reload"
+    -- (only once a pick waits for the next load; the note says so meanwhile)
+    reload.shown = function()
+        local key = languageKey()
+        return key ~= "auto" and key ~= CK.uiLocale
+    end
+    function reload.verbA() return L.V_RELOAD end
+    function s.render()
+        local waiting = shown(reload)
+        reload.frame:SetShown(waiting)
+        note:SetShown(not waiting)
+    end
     -- The buttons' icons
     text(f, 16, KC.title, 428, 72):SetText(L.GUIDE_GLYPHS)
     help(f, 14, KC.help, 428, 94, 368):SetText(L.GUIDE_GLYPHS_HELP)

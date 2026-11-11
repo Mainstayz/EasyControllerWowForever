@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+- **The addon's own language** (asked): the interface follows the client unless another one is picked
+  in Home › Look ("Interface language"), on the guide's first screen, or with
+  `/ec uilang auto|en|fr|de|es|it|zh`. Any of the six translated files can be put over English on
+  any client; the labels are made when the interface loads, so the panel and the guide offer a
+  reload button there (as they do for the game's own glyphs). Chinese controls use the game's Chinese
+  font even on an English client, and picking them turns the Chinese input on when it was off (going
+  back to another language leaves it on). The game's own interface is not touched.
+- **Chinese auction house texts** (reported missing): the auction house prices and Post all texts of
+  1.20 are translated, and the keys of the removed minimap labels dropped from the Chinese file: the
+  locale check is green again.
 - **WoW shortcuts in Chinese mode**: 291 case-insensitive codes for 265 distinct Chinese terms,
   including classes, common specializations, Classic / TBC / Wrath dungeons and raids, group chat,
   combat and professions. Examples: `ss` → 术士, `zs` → 战士, `ny` → 怒焰裂谷,
