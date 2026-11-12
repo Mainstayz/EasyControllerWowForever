@@ -33,8 +33,8 @@
       "Message.lua", "UI.lua", "Wheel.lua", "StickKeyboard.lua", "ConsolePort.lua",
       "Input.lua", "Fields.lua", "QuestItems.lua", "QuestLinks.lua", "Paddles.lua",
       "Mapping.lua", "Toggle.lua", "Vibration.lua", "Supplies.lua", "Upgrades.lua",
-      "Automation.lua", "ConsumableWheel.lua", "ConfigKit.lua", "Phrases.lua",
-      "MinimapNodes.lua", "MinimapLabels.lua", "ConfigWindow.lua", "MyWheels.lua",
+      "Automation.lua", "AuctionPrices.lua", "ConsumableWheel.lua", "ConfigKit.lua", "Phrases.lua",
+      "ConfigWindow.lua", "MyWheels.lua",
       "MapWindow.lua", "Options.lua", "Guide.lua", "Profiles.lua", "Chat.lua", "Bindings.xml"
     ]
   },

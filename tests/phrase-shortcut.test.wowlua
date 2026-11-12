@@ -1,0 +1,73 @@
+import test, beforeEach, expect from "wowlua:test"
+import * as mock from "wowlua:mock"
+
+local held: any = {}
+local function addon(): any return _G.ControllerKeyboard end
+
+@beforeEach
+local function setup()
+    local ck = addon()
+    ck.Guide:SetSeen()
+    ck.Guide:Leave()
+    ck.Config:Close("test")
+    ck.Phrases:Close("test")
+    ck:Close("test")
+    ck.db.settings.features.phrasesShortcut = true
+    ck.Config.shortcutDown, ck.Config.phraseLeftDown = nil, nil
+    held = {}
+    mock.stub(_G, "IsKeyDown", function(key: string): boolean return held[key] == true end)
+    mock.stub(ck.Config, "GameIsFree", function(): boolean return true end)
+end
+
+@test("RB plus D-pad left opens once and opening releases do not change the selection")
+local function opens()
+    local ck = addon()
+    held.PADRSHOULDER = true
+    ck.Config:CheckShortcuts()
+    held.PADDLEFT = true
+    ck.Config:CheckShortcuts()
+    expect(ck.Phrases:IsOpen()).toBe(true)
+    local row, col, channel = ck.Phrases.row, ck.Phrases.col, ck.Phrases.channel
+    ck.Config:CheckShortcuts()
+    ck.Phrases:OnUpdate()
+    expect(ck.Phrases.row).toBe(row)
+    expect(ck.Phrases.col).toBe(col)
+    expect(ck.Phrases.channel).toBe(channel)
+    expect(ck.Phrases.held.PADRSHOULDER).toBe(true)
+    expect(ck.Phrases.held.PADDLEFT).toBe(true)
+    held = {}
+    ck.Config:CheckShortcuts()
+    ck.Phrases:OnUpdate()
+    expect(next(ck.Phrases.held)).toBe(nil)
+    expect(GetBindingAction("PADDLEFT", true)).toBe("CLICK ControllerKeyboardPhrasesPadPADDLEFT:LeftButton")
+    mock.pressKey("PAD2")
+    expect(ck.Phrases:IsOpen()).toBe(false)
+end
+
+@test("chat keyboard retains RB and D-pad left while the shortcut is enabled")
+local function keyboard()
+    local ck = addon()
+    ck:OpenStandalone()
+    ck:SetText("队伍")
+    held.PADRSHOULDER, held.PADDLEFT = true, true
+    ck.Config:CheckShortcuts()
+    expect(ck.Phrases:IsOpen()).toBe(false)
+    expect(ck:IsOpen()).toBe(true)
+    expect(ck:GetText()).toBe("队伍")
+end
+
+@test("phrase shortcut option can be changed with the keyboard module off")
+local function option()
+    local ck = addon()
+    ck.db.settings.modules.keyboard = false
+    ck.Config:Open("keyboard", 6)
+    local page, row = ck.Config:Page(), nil
+    for _, r in ipairs(page.rowsUI) do
+        if r.index and page.rows[r.index].id == "k_phshortcut" then row = r end
+    end
+    expect(row ~= nil).toBe(true)
+    expect(row.label:GetText()).toBe(ck.L.LBL_PHRASES_SHORTCUT)
+    mock.click(row)
+    expect(ck.db.settings.features.phrasesShortcut).toBe(false)
+    ck.db.settings.modules.keyboard = true
+end

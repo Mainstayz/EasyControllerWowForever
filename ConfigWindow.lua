@@ -1356,33 +1356,49 @@ function C:Init()
     -- their buttons.
     local watch = CK.NewFrame("Frame", nil, UIParent)
     C.watch = watch
-    local wasDown = false
-    watch:SetScript("OnUpdate", function()
-        local s = CK.db.settings
-        local chord = s.shortcut
-        if not (s.features.configShortcut and chord and IsKeyDown) then
-            wasDown = false
-            CK.Mapping:Resume()
-            return
+    watch:SetScript("OnUpdate", function() C:CheckShortcuts() end)
+end
+
+-- Observe both pairs together: sharing RB must not make the two watchers
+-- repeatedly suspend and restore each other's bindings. Never bind RB itself.
+function C:CheckShortcuts()
+    local s, M, P = CK.db.settings, CK.Mapping, CK.Phrases
+    local chord = s.features.configShortcut and s.shortcut
+    local phrase = P and P:ShortcutEnabled() and P.SHORTCUT
+    local keyDown = function(key) return IsKeyDown and IsKeyDown(key) and true or false end
+    local configDown = chord and keyDown(chord.hold) and keyDown(chord.press) or false
+    local phraseLeft = phrase and keyDown(phrase.press) or false
+    local phraseDown = phrase and keyDown(phrase.hold) and phraseLeft or false
+    local openConfig = configDown and not self.shortcutDown
+    -- Press RB first (or both within the same frame); holding left and
+    -- subsequently pressing RB is not a request to open a window.
+    local openPhrases = phraseDown and not self.phraseLeftDown
+    self.shortcutDown, self.phraseLeftDown = configDown, keyDown("PADDLEFT")
+
+    local combat = InCombatLockdown()
+    local free = not combat and not self:IsOpen() and self:GameIsFree()
+        and not (CK.IsOpen and CK:IsOpen())
+        and not (P and P:IsOpen())
+        and not (ControllerKeyboardWheel and ControllerKeyboardWheel:IsShown())
+    local wanted = {}
+    if free and chord and keyDown(chord.hold) then wanted[chord.press] = true end
+    -- Trigger layers keep their combat/game functions.
+    local triggers = keyDown("PADLTRIGGER") or keyDown("PADRTRIGGER")
+    if free and phrase and keyDown(phrase.hold) and not triggers then wanted[phrase.press] = true end
+    if not combat then
+        for key in pairs(M.suspended or {}) do
+            if not wanted[key] then M:Resume(); break end
         end
-        -- Its first button held: our action on the second one waits (the
-        -- press opens the panel only), back once it is released
-        local M = CK.Mapping
-        if IsKeyDown(chord.hold) then
-            if not M.suspended and M:IsOurs(chord.press) and not InCombatLockdown() then M:Suspend(chord.press) end
-        elseif M.suspended then
-            M:Resume()
+        for key in pairs(wanted) do
+            if not (M.suspended and M.suspended[key]) and M:IsOurs(key) then M:Suspend(key) end
         end
-        -- While the panel is open, and after it closes until the buttons
-        -- are released, the combination does nothing
-        if C:IsOpen() then
-            wasDown = true
-            return
-        end
-        local down = IsKeyDown(chord.hold) and IsKeyDown(chord.press) and true or false
-        if down and not wasDown and not InCombatLockdown() and C:GameIsFree() then C:Open() end
-        wasDown = down
-    end)
+    end
+    if not free then return end
+    if openConfig then
+        self:Open()
+    elseif openPhrases and not triggers then
+        P:Open(nil)
+    end
 end
 
 ---------------------------------------------------------------------------

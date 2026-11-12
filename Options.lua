@@ -546,9 +546,11 @@ end
 
 -- The quick phrases (Phrases.lua): written in their window itself (X)
 local function phrasesRows(b)
-    if keyboardOff(b) then return end
     local s = settings()
     b.header(L.SEC_PHRASES)
+    b.check({ id = "k_phshortcut", label = L.LBL_PHRASES_SHORTCUT, tip = L.TIP_PHRASES_SHORTCUT,
+        get = function() return s.features.phrasesShortcut end,
+        set = function(v) s.features.phrasesShortcut = v end })
     b.check({ id = "k_phchip", label = L.LBL_PHRASES_CHIP, tip = L.TIP_PHRASES_CHIP,
         get = function() return s.phrasesChip ~= false end,
         set = function(v)

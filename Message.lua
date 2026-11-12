@@ -270,8 +270,8 @@ function CK:Backspace()
     self:SetText(CK.DropLastChar(text))
 end
 
--- B with a message: empty it. With an empty message B belongs to the game,
--- which closes the chat (see CK:UpdateCancelBinding)
+-- B backs out one level without erasing committed text. In chat it belongs
+-- to the game except while composing or browsing quests (UpdateCancelBinding).
 function CK:CancelMessage()
     if self:IsIMEComposing() then
         self:CancelIMEComposition()
@@ -281,7 +281,7 @@ function CK:CancelMessage()
         self:CloseQuestList()
         return
     end
-    self:SetText("")
+    self:Close("dismiss")
 end
 
 function CK:DeleteWord()
@@ -535,9 +535,11 @@ end
 
 function CK:SetChannel(i)
     if not (self.standalone or self.editBox) or not self:ChannelAvailable(i) then return end
-    -- Remember who the chat was opened for before switching away from them
-    if not self.chatAttrs and self.editBox and self.editBox:GetAttribute("chatType") == "WHISPER" then
-        self.whisperTarget = self.editBox:GetAttribute("tellTarget")
+    -- A mouse-down may have closed native chat before this click runs.
+    -- Read the snapshot too, so choosing /w cannot turn the message into a name.
+    local target = self:GetChatAttr("tellTarget")
+    if self:GetChatAttr("chatType") == "WHISPER" and nonEmpty(target) then
+        self.whisperTarget = target
     end
     self.chatAttrs = CK.CHANNEL_LIST[i].attrs(self)
     self.state.questChip = false
@@ -776,10 +778,11 @@ end
 -- A message left when the game closed the chat (a panel opened, combat...)
 -- is kept as a draft, like on a phone, and comes back with the chat: type
 -- "LFM", open the quest log, "Share in chat", and the keyboard holds
--- "LFM [quest]". B empties it as usual.
+-- "LFM [quest]". B closes the chat and keeps the draft too.
 local DRAFT_TIME = 600
 local KEEP_DRAFT = {
     ["chat deactivated"] = true, ["focus lost (OnUpdate)"] = true, combat = true, toggle = true, options = true,
+    dismiss = true, escape = true,
 }
 
 -- attrs: the channel the keyboard opens on (the one kept), else the chat's
@@ -855,6 +858,9 @@ function CK:Open(eb)
 end
 
 function CK:Close(reason)
+    -- The keyboard's X and standalone B have no explicit reason. Closing a
+    -- message keeps it; prompts/fields and successful sends never make drafts.
+    reason = reason or "dismiss"
     if self.db.settings.debug and self:IsOpen() then
         self:Print("close: %s", tostring(reason or "button"))
     end

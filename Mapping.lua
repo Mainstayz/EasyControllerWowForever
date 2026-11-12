@@ -1629,8 +1629,10 @@ function M:Apply()
     end
     -- The trigger toggle's keys over ours (it reads what we bound)
     if CK.Toggle then CK.Toggle:Apply() end
-    -- The panel's shortcut held: its second button left to the game
-    if self.suspended then self:Suspend(self.suspended) end
+    -- Shortcut modifiers held: leave their second buttons to the game.
+    if self.suspended then
+        for key in pairs(self.suspended) do self:Suspend(key) end
+    end
     self:UpdateMarks()
     -- The stick's direction keys, while a party spell is on a button
     if CK.ConsumableWheel and CK.ConsumableWheel.SyncStickKeys then CK.ConsumableWheel:SyncStickKeys() end
@@ -1715,13 +1717,13 @@ function M:KeepShoulders()
     end
 end
 
--- The panel's shortcut (RB + D-pad down): while its first button is held,
--- out of combat, what we put on the second one is taken off, so the press
--- only opens the panel (a wheel on D-pad down opened with it). Back on
--- release.
+-- Watched shortcuts: while their first button is held out of combat,
+-- suspend our actions on each second button. Several pairs can share RB;
+-- releasing the modifier restores all of them together.
 function M:Suspend(key)
     if InCombatLockdown() or not (owner and key) then return end
-    self.suspended = key
+    self.suspended = self.suspended or {}
+    self.suspended[key] = true
     if self.bound[key] then
         SetOverrideBinding(owner, false, key, nil)
         self.bound[key] = nil

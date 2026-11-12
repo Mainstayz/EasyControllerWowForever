@@ -1,0 +1,106 @@
+import test, beforeEach, expect from "wowlua:test"
+import * as mock from "wowlua:mock"
+
+local function keyboard(): any
+    return _G.ControllerKeyboard
+end
+
+@beforeEach
+local function setup()
+    local ck = keyboard()
+    ck.Guide:SetSeen()
+    ck.Config:Close("test")
+    ck:Close("test")
+    ck.draft, ck.sticky = nil, nil
+    ck.db.settings.features.drafts = true
+    ck:SetChineseInput("ziranma")
+    ck:SetInputMethod("stick")
+    ck:OpenStandalone()
+end
+
+@test("B dismisses a touch message once and retains its draft")
+local function dismiss()
+    local ck = keyboard()
+    ck:SetText("等一下，我回蓝")
+    mock.pressKey("PAD2")
+    expect(ck.frame:IsShown()).toBe(false)
+    expect(ck.draft.text).toBe("等一下，我回蓝")
+    expect(ck.draft.chatType).toBe("SAY")
+end
+
+@test("the close button retains committed Chinese and unfinished code")
+local function closeButton()
+    local ck = keyboard()
+    ck:SetText("队伍")
+    ck:TypeChar("n")
+    ck:TypeChar("i")
+    mock.click(ck.frame.actions.Close)
+    expect(ck.frame:IsShown()).toBe(false)
+    expect(ck.draft.text).toBe("队伍")
+    expect(ck.draft.imeCode).toBe("ni")
+end
+
+@test("hovering every channel cannot change a message or its destination")
+local function hoverChannels()
+    local ck = keyboard()
+    ck:SetText("先别开怪")
+    for _, channel in ipairs(ck.frame.channels) do
+        channel:GetScript("OnEnter")(channel)
+        channel:GetScript("OnLeave")(channel)
+    end
+    ck.frame.questChip:GetScript("OnEnter")(ck.frame.questChip)
+    ck.frame.questChip:GetScript("OnLeave")(ck.frame.questChip)
+    expect(ck:CurrentChannelIndex()).toBe(1)
+    expect(ck:GetText()).toBe("先别开怪")
+    expect(ck.sticky).toBe(nil)
+end
+
+@test("click confirms a channel without losing the message")
+local function clickChannel()
+    local ck = keyboard()
+    ck:SetText("集合")
+    mock.click(ck.frame.channels[2])
+    expect(ck:CurrentChannelIndex()).toBe(2)
+    expect(ck.sticky.chatType).toBe("YELL")
+    expect(ck:GetText()).toBe("集合")
+    expect(ck.frame).toBeShown()
+    -- Browsing other channels for a quest link returns to this confirmed one.
+    ck:SetChannel(1)
+    ck:RestoreChannelsFrom()
+    expect(ck:CurrentChannelIndex()).toBe(2)
+end
+
+@test("channel clicks keep the recipient after native whisper focus is lost")
+local function whisperClick()
+    local ck = keyboard()
+    ck:Close("test")
+    local eb = {
+        GetText = function(): string return "稍等一下" end,
+        GetAttribute = function(_: any, key: string): any
+            if key == "chatType" then return "WHISPER" end
+            if key == "tellTarget" then return "Friend" end
+        end,
+        HasFocus = function(): boolean return true end,
+    }
+    ck:Open(eb)
+    -- Native focus loss runs on mouse-down, before OnClick on mouse-up.
+    ck:EnterStandalone()
+    mock.click(ck.frame.channels[1])
+    mock.click(ck.frame.channels[7])
+    expect(ck:GetChatAttr("tellTarget")).toBe("Friend")
+    expect(ck:WhisperNameMode()).toBe(false)
+    expect(ck:GetText()).toBe("稍等一下")
+    mock.pressKey("PAD2")
+    expect(ck.draft.target).toBe("Friend")
+    expect(ck.draft.text).toBe("稍等一下")
+end
+
+@test("clicking an unavailable channel retains the current destination")
+local function unavailableChannel()
+    local ck = keyboard()
+    mock.stub(_G, "IsInGroup", function(): boolean return false end)
+    ck:SetText("等等")
+    mock.click(ck.frame.channels[3])
+    expect(ck:CurrentChannelIndex()).toBe(1)
+    expect(ck:GetText()).toBe("等等")
+end

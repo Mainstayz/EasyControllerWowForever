@@ -169,6 +169,109 @@ check("B is captured even when only an uncommitted code exists", function()
     equal(binds.PAD2, nil)
 end)
 
+check("committed chat text leaves B with the game and returns as a draft", function()
+    local CK, _, _, binds = fixture()
+    CK.standalone, CK.bindingsActive = false, true
+    local eb = { GetText = function() return "" end,
+        GetAttribute = function(_, k) if k == "chatType" then return "SAY" end end }
+    CK.editBox = eb
+    CK:SetText("等一下，我回蓝")
+    equal(binds.PAD2, nil)
+    -- The game's own B closes its chat; the addon only reacts to that close.
+    CK:Close("chat deactivated")
+    equal(CK.draft.text, "等一下，我回蓝")
+    CK:Open(eb)
+    equal(CK:GetText(), "等一下，我回蓝")
+    equal(CK.draft, nil)
+end)
+
+check("cancelling code retains the B binding until release without deleting text", function()
+    local CK, typeCode, _, binds = fixture()
+    CK.standalone, CK.bindingsActive = false, true
+    CK.editBox = { GetAttribute = function(_, k) if k == "chatType" then return "SAY" end end }
+    CK.buffer = "队伍"
+    typeCode("ni")
+    CK:OnPadButton("PAD2")
+    equal(CK:GetText(), "队伍")
+    equal(CK:IsIMEComposing(), false)
+    equal(binds.PAD2, "ControllerKeyboardPadPAD2")
+    CK:OnPadButtonUp("PAD2")
+    equal(binds.PAD2, nil)
+    equal(CK:IsOpen(), true)
+end)
+
+check("standalone B keeps a private draft for its recipient", function()
+    local CK = fixture()
+    CK.buffer = "稍等一下"
+    CK.chatAttrs = { chatType = "WHISPER", tellTarget = "Friend" }
+    CK:OnPadButton("PAD2")
+    equal(CK:IsOpen(), false)
+    equal(CK.draft.text, "稍等一下")
+    equal(CK.draft.target, "Friend")
+    local function whisper(target)
+        return { GetText = function() return "" end,
+            GetAttribute = function(_, k)
+                if k == "chatType" then return "WHISPER" end
+                if k == "tellTarget" then return target end
+            end }
+    end
+    CK:Open(whisper("Other"))
+    equal(CK:GetText(), "")
+    assert(CK.draft)
+    CK:Close("test")
+    CK:Open(whisper("Friend"))
+    equal(CK:GetText(), "稍等一下")
+end)
+
+check("channel clicks after native whisper loses focus retain recipient and body", function()
+    for _, switchAway in ipairs({ false, true }) do
+        local CK = fixture()
+        local eb = { GetText = function() return "稍等一下" end,
+            GetAttribute = function(_, k)
+                if k == "chatType" then return "WHISPER" end
+                if k == "tellTarget" then return "Friend" end
+            end }
+        CK:Open(eb)
+        -- Mouse-down closes native chat before the channel's click on release.
+        CK:EnterStandalone()
+        equal(CK.editBox, nil)
+        if switchAway then CK:SetChannel(1) end
+        CK:SetChannel(7)
+        equal(CK:GetChatAttr("tellTarget"), "Friend")
+        equal(CK:WhisperNameMode(), false)
+        equal(CK:GetText(), "稍等一下")
+        CK:Close()
+        equal(CK.draft.target, "Friend")
+        CK:Open(eb)
+        equal(CK:GetText(), "稍等一下")
+        equal(CK:GetChatAttr("tellTarget"), "Friend")
+    end
+end)
+
+check("B exits quest selection before closing a message", function()
+    local CK = fixture()
+    CK.buffer = "任务"
+    CK.state.questList = {}
+    CK:OnPadButton("PAD2")
+    equal(CK:InQuestList(), false)
+    equal(CK:IsOpen(), true)
+    equal(CK:GetText(), "任务")
+end)
+
+check("close keeps the draft preference and never turns prompts into chat drafts", function()
+    local CK = fixture()
+    CK.buffer = "不保留"
+    CK.db.settings.features.drafts = false
+    CK:Close()
+    equal(CK.draft, nil)
+    CK.db.settings.features.drafts = true
+    local cancelled = false
+    CK:OpenPrompt("Name", "轮盘名字", function(value) cancelled = value == nil end)
+    CK:OnPadButton("PAD2")
+    equal(cancelled, true)
+    equal(CK.draft, nil)
+end)
+
 check("D-pad crosses page boundaries without losing the selected candidate", function()
     local CK, typeCode = fixture()
     typeCode("ui")

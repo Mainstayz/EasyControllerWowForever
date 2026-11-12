@@ -1,9 +1,9 @@
 local _, CK = ...
 
 -- Pad buttons. Each input method has its own table (CK.Methods[x].buttons);
--- these ones are common. A sends through the secure macro button. B empties
--- the message while there is one; with an empty message it is left to the
--- game's gamepad UI, which closes the chat (the addon must never do it).
+-- these ones are common. A sends through the secure macro button. B backs
+-- out of composition or quest selection; otherwise the game's own B closes
+-- the chat and the message is kept as a draft. No extra press or hold.
 -- X, Y, Start and Select always belong to the game.
 local COMMON_ACTIONS = {
     PADDLEFT = "NavPrev",
@@ -87,6 +87,7 @@ function CK:ButtonAction(button)
     if method.ownButtons then return method.buttons[button] end
     if button == "PAD2" then
         if self:IsIMEComposing() then return "CancelIMEComposition" end
+        if self:InQuestList() then return "CancelMessage" end
         return self.standalone and STANDALONE_ACTIONS.PAD2 or "CancelMessage"
     end
     return self:GetMethod().buttons[button] or COMMON_ACTIONS[button]
@@ -115,7 +116,7 @@ function CK:OnPadButtonUp(button)
     if button == self.repeatButton then
         self.repeatFn = nil
     end
-    -- B released after emptying the message: now leave it to the game
+    -- Finish this press before returning B to the game's chat UI.
     if button == "PAD2" then self:UpdateCancelBinding() end
 end
 
@@ -457,14 +458,14 @@ function CK:EnableButtons()
     self.sendButton:Show()
 end
 
--- B is bound only while the message holds text: B then empties it, and the
--- next B (empty message) goes to the game, which closes the chat. Changed on
--- release so the game never sees the second half of the same press.
+-- Only composition and quest selection capture B. With committed text the
+-- game's own B closes the chat, and OnChatDeactivated saves the draft.
+-- Changed on release so cancelling a code cannot also close the chat.
 function CK:UpdateCancelBinding()
     if not self.bindingsActive or self.standalone or InCombatLockdown() then return end
     if self:GetMethod().ownButtons then return end
     if self.padDown and self.padDown.PAD2 then return end
-    local want = self:GetText() ~= "" or self:InQuestList() or self:IsIMEComposing()
+    local want = self:InQuestList() or self:IsIMEComposing()
     if want == self.cancelBound then return end
     if want then
         bind(self.frame, "PAD2", bindingButtonName("PAD2"))

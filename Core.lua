@@ -114,7 +114,7 @@ local DEFAULTS = {
     features = {
         drafts = true, linkCapture = true,
         questTooltip = true, questGlow = true, questSellAlert = true, questHoverAlert = true,
-        extraDisplay = true, showSticks = true, configShortcut = true,
+        extraDisplay = true, showSticks = true, configShortcut = true, phrasesShortcut = true,
         -- Out of range: the whole spell in red on the gamepad bar (Range.lua)
         rangeTint = false,
         -- A trigger pressed alone switches its bar (Toggle.lua); back to the

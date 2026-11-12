@@ -1,0 +1,109 @@
+import test, beforeEach, expect from "wowlua:test"
+import * as mock from "wowlua:mock"
+
+local function addon(): any
+    return _G.ControllerKeyboard
+end
+
+@beforeEach
+local function setup()
+    local ck = addon()
+    ck.Guide:SetSeen()
+    ck:Close("test")
+    ck.Config:Close("test")
+    local st = ck.db.settings
+    st.modules.keyboard, st.modules.mapping = true, true
+    st.features.phrasesShortcut = false
+    st.wheel.enabled, st.wheel.usableEnabled, st.wheel.hold = true, true, false
+    wipe(st.mapping)
+    wipe(st.replaced)
+    for _, binding in ipairs({ "CONTROLLERKEYBOARD_TOGGLE", "CLICK ControllerKeyboardPhrasesToggle:LeftButton",
+        "CLICK ControllerKeyboardWheelToggle:LeftButton", "CLICK ControllerKeyboardUsableToggle:LeftButton" }) do
+        for _, key in ipairs({ GetBindingKey(binding) }) do SetBinding(key, nil) end
+    end
+    ck.Mapping:Apply()
+    ck.Guide:Open(6)
+    ck.Config.frame:ClearAllPoints()
+    ck.Config.frame:SetPoint("TOP", UIParent, "TOP", 0, 0)
+end
+
+local function checkLayout()
+    local g = addon().Guide
+    local s = g:Current()
+    local previous: any = nil
+    for _, c in ipairs(s.summary) do
+        local r = c.frame
+        expect(r:IsShown()).toBe(true)
+        expect(r:GetWidth()).toBe(288)
+        expect(r:GetHeight() >= 54).toBe(true)
+        expect(r.status:GetBottom() >= r:GetBottom()).toBe(true)
+        expect(r:GetBottom() >= s.placeSpells.frame:GetTop() + 4).toBe(true)
+        if previous then expect(previous:GetBottom() >= r:GetTop() + 3).toBe(true) end
+        previous = r
+    end
+    expect(s.finish.frame:GetBottom() > g.frame.bar:GetTop()).toBe(true)
+end
+
+@test("Unbound readiness is explicit and keeps comfortable targets above Finish")
+local function unbound()
+    local ck = addon()
+    local g, s = ck.Guide, ck.Guide:Current()
+    expect(s.summary[1].frame.status:GetText():find(ck.L.GUIDE_NO_KEY, 1, true) ~= nil).toBe(true)
+    expect(s.summary[1].frame.status:GetText():find("/ec keyboard", 1, true) ~= nil).toBe(true)
+    for i = 2, 4 do expect(s.summary[i].frame.status:GetText()).toBe(ck.L.GUIDE_NO_KEY) end
+    checkLayout()
+    mock.screenshot("guide-readiness-unbound", ck.Config.frame)
+    mock.click(s.finish.frame)
+    expect(g:IsOpen()).toBe(false)
+    expect(g:Seen()).toBe(true)
+end
+
+@test("Default phrase shortcut is shown as ready even with mapping disabled")
+local function phraseShortcut()
+    local ck = addon()
+    ck.db.settings.features.phrasesShortcut = true
+    ck.db.settings.modules.mapping = false
+    ck.Guide:Render()
+    local keys = ck.Guide.EntryKeys("wheel:phrases")
+    expect(keys[1]).toBe(ck.Phrases:ShortcutLabel(16))
+    expect(ck.Guide:Current().summary[2].frame.status:GetText()).toBe(format(ck.L.GUIDE_KEY_IS, keys[1]))
+    checkLayout()
+end
+
+@test("A single click reviews the right setting and B or RB returns to its row")
+local function review()
+    local ck = addon()
+    local g, s = ck.Guide, ck.Guide:Current()
+    for i, step in ipairs({ 4, 4, 5, 5 }) do
+        mock.click(s.summary[i].frame)
+        expect(g.step).toBe(step)
+        expect(g.mode).toBe("normal")
+        g:Press(i == 1 and "RB" or "B")
+        expect(g.step).toBe(6)
+        expect(g:Focused() == s.summary[i]).toBe(true)
+    end
+    ck.db.settings.wheel.enabled = false
+    g:Render()
+    mock.click(s.summary[3].frame)
+    expect(g:Focused() == g:Current().cards[1].toggle).toBe(true)
+    g:Press("B")
+    ck.db.settings.modules.keyboard = false
+    g:Render()
+    expect(s.summary[1].frame.status:GetText()).toBe(ck.L.GUIDE_SUM_OFF)
+    expect(s.summary[2].frame.status:GetText()).toBe(ck.L.GUIDE_NO_KEY)
+end
+
+@test("Native Toggle binding is shown with mapping off and long keys fit the client font")
+local function nativeBinding()
+    local ck = addon()
+    ck.db.settings.modules.mapping = false
+    SetBinding("CTRL-ALT-SHIFT-NUMPADMULTIPLY", "CONTROLLERKEYBOARD_TOGGLE")
+    SetBinding("CTRL-ALT-SHIFT-NUMPADDIVIDE", "CONTROLLERKEYBOARD_TOGGLE")
+    ck.Guide:Render()
+    local s = ck.Guide:Current()
+    expect(#ck.Guide.EntryKeys("cmd:CONTROLLERKEYBOARD_TOGGLE")).toBe(2)
+    expect(s.summary[1].frame.status:GetText():find(ck.L.GUIDE_NO_KEY, 1, true) == nil).toBe(true)
+    for i = 2, 4 do expect(s.summary[i].frame.status:GetText()).toBe(ck.L.GUIDE_ENTRY_MAPPING_OFF) end
+    checkLayout()
+    mock.screenshot("guide-readiness-native-binding", ck.Config.frame)
+end

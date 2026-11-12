@@ -374,8 +374,8 @@ function CK:BuildUI()
         method.area:Hide()
     end
 
-    -- Channel row, under the input method: D-pad down to reach it, then < >,
-    -- or hover with the mouse (no click, the game would close the chat)
+    -- Channel row, under the input method: D-pad down to reach it, then < >.
+    -- Mouse/touch confirms with a click; passing over a channel is read-only.
     local cbar = CK.NewFrame("Frame", nil, f)
     f.cbar = cbar
     f.cbarSlice = well(cbar)
@@ -390,28 +390,18 @@ function CK:BuildUI()
         b.label:SetPoint("CENTER", 0, 0)
         b.label:SetText(ch.label)
         b:SetScript("OnEnter", function(s)
-            if not CK.mouseOnChannels then
-                CK.mouseOnChannels = true
-                CK:NoteChannelsFrom()
-            end
-            CK.channelsLeft = nil
-            CK:SetChannel(i)
             GameTooltip:SetOwner(s, "ANCHOR_BOTTOM")
             local name = L.CHANNEL_NAMES[i]
             if not CK:ChannelAvailable(i) then name = name .. " (" .. L.CHANNEL_UNAVAILABLE .. ")" end
             GameTooltip:SetText(name, 1, 1, 1)
             GameTooltip:Show()
         end)
-        b:SetScript("OnLeave", function()
-            GameTooltip:Hide()
-            -- Off the row (not onto a neighbour): the next visit notes again
-            local token = {}
-            CK.channelsLeft = token
-            C_Timer.After(0.3, function()
-                if CK.channelsLeft == token then CK.mouseOnChannels = nil end
-            end)
+        b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+        b:SetScript("OnClick", function()
+            CK:SetChannel(i)
+            -- A confirmed click becomes the return channel for quest links.
+            CK:NoteChannelsFrom()
         end)
-        b:SetScript("OnClick", function() CK:SetChannel(i) end)
         f.channels[i] = b
     end
 
@@ -429,16 +419,12 @@ function CK:BuildUI()
         chip.icon:SetTexture("Interface\\GossipFrame\\AvailableQuestIcon")
     end
     chip:SetScript("OnEnter", function(s)
-        if CK.mouseOnChannels then CK:RestoreChannelsFrom() end
         GameTooltip:SetOwner(s, "ANCHOR_BOTTOM")
         GameTooltip:SetText(L.QUESTS_TIP, 1, 1, 1)
         GameTooltip:Show()
     end)
     chip:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    chip:SetScript("OnClick", function()
-        if CK.mouseOnChannels then CK:RestoreChannelsFrom() end
-        CK:OpenQuestList()
-    end)
+    chip:SetScript("OnClick", function() CK:OpenQuestList() end)
     f.questChip = chip
 
     -- Mouse / Steam Controller actions

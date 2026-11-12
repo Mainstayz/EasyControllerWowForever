@@ -1,0 +1,3 @@
+# Generated dictionaries have a reproducible LF-only artifact contract.
+Dict_zhCN.lua text eol=lf
+Dict_zhCN_WoW.lua text eol=lf

@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+- **Quick phrases shortcut**: hold RB, then press D-pad left in the game world outside combat.
+  Enabled by default, with a switch in Keyboard › Quick phrases and shown in the guide. Opening
+  keys must be released before they can move the selection or change its channel. Chat, menus
+  and trigger layers keep their controls; the configuration shortcut takes priority on a collision.
+
+- **Safer Back on the chat keyboard**: B cancels unfinished Chinese code or leaves quest selection;
+  otherwise the game's own B closes chat in one press, keeping a ten-minute draft when enabled.
+  The keyboard's close button and standalone B keep drafts too. Prompts still cancel normally.
+- **Deliberate channel selection**: mouse and touch select channels with a click; passing over the
+  row only shows a tooltip. D-pad navigation keeps its existing controls.
+- **Stable custom wheel directions**: all eight slots keep the same directions in the editor and
+  in play. Empty slots remain empty, so removing an action cannot move another under the stick.
+- **First-launch shortcut check**: the final guide screen shows the keyboard, quick phrases and
+  item wheels' actual shortcuts, marks enabled features with no shortcut, and links back to setup.
+
 - **The addon's own language** (asked): the interface follows the client unless another one is picked
   in Home › Look ("Interface language"), on the guide's first screen, or with
   `/ec uilang auto|en|fr|de|es|it|zh`. Any of the six translated files can be put over English on

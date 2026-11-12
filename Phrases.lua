@@ -109,6 +109,20 @@ end
 
 local function settings() return CK.db.settings end
 
+-- A fixed, easy-to-reach pair in the world. The config shortcut has
+-- priority if the player deliberately assigns the same pair to it.
+P.SHORTCUT = { hold = "PADRSHOULDER", press = "PADDLEFT" }
+function P:ShortcutEnabled()
+    local s = settings()
+    if not s.features.phrasesShortcut then return false end
+    local chord = s.features.configShortcut and s.shortcut
+    return not (chord and chord.hold == self.SHORTCUT.hold and chord.press == self.SHORTCUT.press)
+end
+
+function P:ShortcutLabel(size)
+    return CK:GlyphMarkup("RB", size or 16) .. " + " .. CK:GlyphMarkup("DPAD_LEFT", size or 16)
+end
+
 -- The grid shown: the player's, else the defaults
 function P:Grid()
     local saved = valid(settings().phrases)

@@ -990,7 +990,11 @@ function G:BuildScreen4(s, f)
             c.frame:SetShown(on)
             c.label:SetShown(on)
         end
-        local keys = G.KeysOf("wheel:phrases")
+        -- Toggle is a game binding, not a wheel action the guide can capture.
+        if L.GUIDE_KEYBOARD_BINDING then
+            s.module.frame.help:SetText(format(L.GUIDE_KEYBOARD_BINDING, L.BINDING_TOGGLE))
+        end
+        local keys = G.EntryKeys("wheel:phrases")
         if #keys > 0 then
             s.phrasesLine:SetText(format(L.GUIDE_KEY_IS, table.concat(keys, ", ", 1, math.min(2, #keys))))
             s.phrasesLine:SetTextColor(unpack(KC.cream2))
@@ -1004,13 +1008,25 @@ end
 ---------------------------------------------------------------------------
 -- 5. The wheels, the healer's
 ---------------------------------------------------------------------------
--- The keys a wheel is on now ("UP", "LT + Y"...), as glyphs
+-- The configured action that will run when the panel gives the pad back.
+-- Bindings are suspended in the guide, so querying live overrides here
+-- would miss working keys. Saved but unavailable assignments do not count.
+local function mappedAction(input, layer)
+    local m = M()
+    if m:ReplacedActive(input, layer) then return m:GetReplaced(input.id, layer) end
+    if m:State(input, layer) == "free" and not m:Inactive(input, layer) then
+        return m:EffectiveAction(input, layer)
+    end
+end
+
+-- The keys an action is on now ("UP", "LT + Y"...), as glyphs.
 local function keysOf(action)
-    local found = {}
-    for _, input in ipairs(M().INPUTS) do
-        if M():InputEnabled(input) and not input.layer then
-            for _, layer in ipairs(M().LAYERS) do
-                if M():Get(input.id, layer) == action or M():GetReplaced(input.id, layer) == action then
+    local m, found = M(), {}
+    if not m:Enabled() then return found end
+    for _, input in ipairs(m.INPUTS) do
+        if m:InputEnabled(input) and not input.layer and m:InputKey(input) then
+            for _, layer in ipairs(m.LAYERS) do
+                if mappedAction(input, layer) == action then
                     found[#found + 1] = K.ComboMarkup(input.id, layer, 16)
                 end
             end
@@ -1019,6 +1035,54 @@ local function keysOf(action)
     return found
 end
 G.KeysOf = keysOf
+
+local ENTRY_BINDINGS = {
+    ["cmd:CONTROLLERKEYBOARD_TOGGLE"] = "CONTROLLERKEYBOARD_TOGGLE",
+    ["wheel:phrases"] = "CLICK ControllerKeyboardPhrasesToggle:LeftButton",
+    ["wheel:consumables"] = "CLICK ControllerKeyboardWheelToggle:LeftButton",
+    ["wheel:usable"] = "CLICK ControllerKeyboardUsableToggle:LeftButton",
+}
+
+-- Include keys set in the game binding menu, even with mapping off.
+-- Keep pad glyphs, localized physical key names, and no duplicate labels.
+function G.EntryKeys(action)
+    local m, found, seen = M(), keysOf(action), {}
+    local P = CK.Phrases
+    if action == "wheel:phrases" and P and P:ShortcutEnabled() then
+        table.insert(found, 1, P:ShortcutLabel(16))
+    end
+    for _, label in ipairs(found) do seen[label] = true end
+    local function nativeLabel(key)
+        for _, input in ipairs(m.INPUTS) do
+            if not input.layer and m:InputEnabled(input) then
+                for _, layer in ipairs(m.LAYERS) do
+                    if m:Combo(input, layer) == key then
+                        local assigned = m:Enabled() and mappedAction(input, layer)
+                        if assigned and assigned ~= action then return nil end
+                        -- A routed paddle owns its empty layers too.
+                        if m:Enabled() and input.paddle and not assigned then
+                            for _, routedLayer in ipairs(m.LAYERS) do
+                                if m.Routable(m:EffectiveAction(input, routedLayer)) then return nil end
+                            end
+                        end
+                        return K.ComboMarkup(input.id, layer, 16)
+                    end
+                end
+            end
+        end
+        return GetBindingText and GetBindingText(key, "KEY_", 1) or key
+    end
+    local binding = ENTRY_BINDINGS[action]
+    if binding and GetBindingKey then
+        for _, key in ipairs({ GetBindingKey(binding) }) do
+            local label = nativeLabel(key)
+            if label and label ~= "" and not seen[label] then
+                found[#found + 1], seen[label] = label, true
+            end
+        end
+    end
+    return found
+end
 
 local function isHealer()
     local _, class = UnitClass("player")
@@ -1033,10 +1097,11 @@ function G:BuildScreen5(s, f)
         cf.art = image(cf, art, 16, 16, 112, 112)
         text(cf, 16, KC.title, 144, 12):SetText(title)
         help(cf, 13, KC.help, 144, 34, 222):SetText(desc)
-        switchLine(s, cf, 136, 88, 234, 30, function(on) return on and L.GUIDE_WHEEL_ON or L.GUIDE_WHEEL_OFF end,
+        cf.toggle = switchLine(s, cf, 136, 88, 234, 30, function(on) return on and L.GUIDE_WHEEL_ON or L.GUIDE_WHEEL_OFF end,
             nil, get, set)
         local key = button(s, cf, L.GUIDE_PICK_KEY, 144, 126, 222, 34, false, function() G:StartBind(action) end)
         key.enabled = get
+        cf.key = key
         cf.keyLine = help(cf, 13, KC.help, 16, 136, 120)
         cf.action, cf.get = action, get
         s.cards[#s.cards + 1] = cf
@@ -1086,7 +1151,7 @@ function G:BuildScreen5(s, f)
         hb:SetShown(healer)
         auto:SetShown(not healer)
         for _, card in ipairs(s.cards) do
-            local keys = keysOf(card.action)
+            local keys = G.EntryKeys(card.action)
             if #keys > 0 then
                 card.keyLine:SetText(format(L.GUIDE_KEY_IS, table.concat(keys, ", ", 1, math.min(2, #keys))))
                 card.keyLine:SetTextColor(unpack(KC.cream2))
@@ -1347,53 +1412,76 @@ function G:BuildScreen6(s, f)
     s.rows = {}
     for i, e in ipairs(COMFORT) do s.rows[i] = comfortRow(s, f, e) end
     rule(f, 492, 72, 1, 444)
-    image(f, "ck_onb_done", 584, 72, 128, 128)
-    text(f, 15, KC.title, 508, 212):SetText(L.GUIDE_SUMMARY)
+    text(f, 15, KC.title, 508, 72):SetText(L.GUIDE_SUMMARY)
+    help(f, 13, KC.help, 508, 96, 288):SetText(L.GUIDE_ENTRY_REVIEW or L.V_EDIT)
+    -- Four generous click targets replace the decorative picture and the
+    -- static feature names. Missing a key never disables Finish.
+    local entries = {
+        { label = L.GUIDE_SUM_KEYBOARD, action = "cmd:CONTROLLERKEYBOARD_TOGGLE", step = 4,
+            get = keyboardOn, focus = function() return G.screens[4].module end },
+        { label = L.PHRASES_NAME, action = "wheel:phrases", step = 4,
+            get = function() return true end, focus = function() return G.screens[4].phrasesKey end },
+        { label = L.GUIDE_SUM_CONSUMABLES, action = "wheel:consumables", step = 5,
+            get = function() return settings().wheel.enabled and true or false end,
+            focus = function() local card = G.screens[5].cards[1]; return card.get() and card.key or card.toggle end },
+        { label = L.GUIDE_SUM_USABLE, action = "wheel:usable", step = 5,
+            get = function() return settings().wheel.usableEnabled ~= false end,
+            focus = function() local card = G.screens[5].cards[2]; return card.get() and card.key or card.toggle end },
+    }
     s.summary = {}
-    for i = 1, 6 do
-        local y = 238 + (i - 1) * 22
-        local key = help(f, 14, KC.grey, 508, y)
-        local value = help(f, 14, KC.cream2, 612, y)
-        value:SetWidth(184)
-        value:SetWordWrap(false)
-        s.summary[i] = { key, value }
+    for i, entry in ipairs(entries) do
+        local row = frameAt(f, "Button", 508, 128, 288, 54)
+        row.bg = box(row, KC.controlBg, 1, KC.line1, 1)
+        row.label = text(row, 14, KC.cream, 12, 7)
+        row.label:SetWidth(264)
+        row.label:SetText(entry.label)
+        row.status = help(row, 13, KC.cream2, 12, 28, 264)
+        local c = add(s, { frame = row, action = entry.action })
+        function c.press(self) G:Go(entry.step, entry.focus(), self) end
+        function c.verbA() return L.V_EDIT end
+        function c.draw(_, focused)
+            focusLook(row.bg, focused)
+            row.label:SetTextColor(unpack(focused and KC.focusText or KC.cream))
+            local keys, live = G.EntryKeys(entry.action), entry.get()
+            local color = not live and KC.grey or (#keys == 0 and KC.warn or KC.cream2)
+            local status = L.GUIDE_SUM_OFF
+            if live then
+                if #keys > 0 then
+                    -- Prefer two keys; a long localized key name gets the
+                    -- full width without squeezing the text or the target.
+                    local count = math.min(2, #keys)
+                    repeat
+                        status = format(L.GUIDE_KEY_IS, table.concat(keys, ", ", 1, count))
+                        row.status:SetText(status)
+                        count = count - 1
+                    until count < 1 or row.status:GetStringHeight() <= 28
+                elseif entry.action == "cmd:CONTROLLERKEYBOARD_TOGGLE" then
+                    status = L.GUIDE_NO_KEY .. " · /ec keyboard"
+                else
+                    status = not mappingOn() and (L.GUIDE_ENTRY_MAPPING_OFF or L.MAP_MODULE_OFF) or L.GUIDE_NO_KEY
+                end
+            end
+            row.status:SetText(status)
+            row.status:SetTextColor(unpack(color))
+            row:SetHeight(math.max(54, 28 + row.status:GetStringHeight() + 4))
+        end
+        s.summary[i] = c
     end
-    button(s, f, L.GUIDE_PLACE_SPELLS, 508, 388, 288, 40, false, function() G:Finish("gamepad") end)
-    button(s, f, L.GUIDE_FINISH, 508, 438, 288, 40, true, function() G:Finish() end)
+    s.placeSpells = button(s, f, L.GUIDE_PLACE_SPELLS, 508, 388, 288, 40, false, function() G:Finish("gamepad") end)
+    s.finish = button(s, f, L.GUIDE_FINISH, 508, 438, 288, 40, true, function() G:Finish() end)
     help(f, 13, KC.grey, 508, 492, 288):SetText(L.GUIDE_AGAIN)
     function s.first() return s.rows[1] end
-    -- The rows one under the other, each as tall as its help
+    -- The rows one under the other, each as tall as its help.
     function s.layout()
         local y = 100
         for _, c in ipairs(s.rows) do
             at(c.frame, f, 24, y)
             y = y + c.frame:GetHeight()
         end
-    end
-    function s.render()
-        local st = settings()
-        local paddles, pads = 0, {}
-        for _, id in ipairs(P().ORDER) do
-            if P():Identified(id) then paddles = paddles + 1 end
-        end
-        for _, side in ipairs({ "L", "R" }) do
-            if touchSide(side) then pads[#pads + 1] = L["GUIDE_TOUCH_" .. side] end
-        end
-        local wheels = {}
-        if st.wheel.enabled then wheels[#wheels + 1] = L.GUIDE_SUM_CONSUMABLES end
-        if st.wheel.usableEnabled ~= false then wheels[#wheels + 1] = L.GUIDE_SUM_USABLE end
-        local lines = {
-            { L.GUIDE_SUM_ICONS, nameIn(GLYPH_STYLES, st.glyphStyle) },
-            { L.GUIDE_SUM_PADDLES, paddles > 0 and format(L.GUIDE_SUM_IDENTIFIED, paddles) or L.GUIDE_SUM_NONE },
-            { L.GUIDE_SUM_PADS, #pads > 0 and table.concat(pads, ", ") or L.GUIDE_SUM_NONE },
-            { L.GUIDE_SUM_BAR, format("%d %%", P():BarScale() * 100 + 0.5) },
-            { L.GUIDE_SUM_KEYBOARD, not st.modules.keyboard and L.GUIDE_SUM_OFF
-                or (st.inputMethod == "stick" and L.METHOD_STICK or L.METHOD_WHEEL) },
-            { L.GUIDE_SUM_WHEELS, #wheels > 0 and table.concat(wheels, ", ") or L.GUIDE_SUM_NONE },
-        }
-        for i, l in ipairs(lines) do
-            s.summary[i][1]:SetText(l[1])
-            s.summary[i][2]:SetText(l[2])
+        y = 128
+        for _, c in ipairs(s.summary) do
+            at(c.frame, f, 508, y)
+            y = y + c.frame:GetHeight() + 4
         end
     end
 end
@@ -1435,12 +1523,14 @@ function G:Move(d)
     self:Render()
 end
 
--- To a step (1-6), its first control focused
-function G:Go(step)
+-- To a step (1-6), optionally at a specific control. A summary review
+-- remembers its row so B / RB can return there after changing a setting.
+function G:Go(step, focus, summaryReturn)
     self.step = math.max(1, math.min(STEPS, step))
+    self.summaryReturn = summaryReturn
     local s = self:Current()
     if s.enter then s.enter() end
-    s.focus = s.first and s.first() or s.controls[1]
+    s.focus = focus or (s.first and s.first() or s.controls[1])
     self:Render()
 end
 
@@ -1491,8 +1581,10 @@ function G:Press(name)
     elseif name == "LB" then
         if self.step > 1 then self:Go(self.step - 1) end
     elseif name == "RB" then
+        if self.summaryReturn then return self:Go(STEPS, self.summaryReturn) end
         if self.step < STEPS then self:Go(self.step + 1) end
     elseif name == "B" then
+        if self.summaryReturn then return self:Go(STEPS, self.summaryReturn) end
         if self.step == 1 then return self:Later() end
         self:Go(self.step - 1)
     end
@@ -1520,7 +1612,8 @@ function G:Hints()
         list[#list + 1] = Hn({ "RB" }, L.GUIDE_NEXT, "RB")
         list[#list + 1] = Hn({ "B" }, L.GUIDE_LATER, "B")
     else
-        list[#list + 1] = Hn(self.step < STEPS and { "LB", "RB" } or { "LB" }, L.GUIDE_STEP, "LB")
+        list[#list + 1] = self.summaryReturn and Hn({ "RB" }, L.GUIDE_SUMMARY, "RB")
+            or Hn(self.step < STEPS and { "LB", "RB" } or { "LB" }, L.GUIDE_STEP, "LB")
         list[#list + 1] = Hn({ "B" }, L.V_BACK, "B")
     end
     return list

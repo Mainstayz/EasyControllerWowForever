@@ -459,8 +459,9 @@ local PREFIXES = ",SHIFT-,CTRL-,ALT-,CTRL-SHIFT-,ALT-SHIFT-,ALT-CTRL-,ALT-CTRL-S
 -- A page of the open wheel into the 8 slots' buttons, from the wheel's
 -- attributes: "ck-c-2-5" is the consumables wheel ("c"; the player's: "1"
 -- to "8"), page 2, slot 5; "-t" its kind (item, spell, macro), "-u" its unit
--- "-n": how many the page holds; the slots' buttons go around the wheel in
--- as many sections ("ck-x5-2": slot 2 of 5's direction). A party spell's
+-- "-n": the page's section count (always 8 for the player's own wheels,
+-- including empty directions; automatic wheels use their item count).
+-- "ck-x5-2": slot 2 of 5's direction. A party spell's
 -- wheel: each member's own place ("ck-pdx-2"), nearer the middle; a member
 -- who isn't there gets no button
 local APPLY_PAGE = [[
@@ -652,6 +653,7 @@ local USE = [[
 local LET_GO = [[
     local wid = owner:GetAttribute("wheel") or "c"
     local party = strsub(wid, 1, 1) == "p"
+    local fixed = owner:GetAttribute("ck-" .. wid .. "-fixed")
     local stickAt = owner:GetAttribute(party and "ck-pstick" or "ck-stick") or 2
     -- For /ec wheel: each key as it comes, and the stick read then
     local seen = GetGamePadState()
@@ -698,7 +700,11 @@ local LET_GO = [[
     for pass = 1, 2 do
         local x, y, clear
         if pass == 1 then
-            if len > 0.05 and len >= strongest * 0.8 then x, y = stick.x, stick.y end
+            -- A deliberate aim on a fixed wheel wins even at a shorter
+            -- reach: moving into an empty direction must cancel an old action.
+            if len > 0.05 and (len >= strongest * 0.8 or (fixed and len > ]] .. AIM .. [[)) then
+                x, y = stick.x, stick.y
+            end
         elseif letGo and (owner:GetAttribute("ck-aim") or 0) < 1 then
             x, y, clear = 0, 0, true
             for key in gmatch(keys, "([^,]+),") do
@@ -712,7 +718,11 @@ local LET_GO = [[
         if x then
             local best, bestDot, second = nil, -100, -100
             for i = 1, n do
-                if owner:GetFrameRef("slot" .. i):IsShown() then
+                -- Fixed wheels keep empty directions in the geometry. Keep
+                -- that slot as the aim too, so neither an old action nor the
+                -- direction-key fallback can replace it; the final check
+                -- below refuses to click its hidden button.
+                if fixed or owner:GetFrameRef("slot" .. i):IsShown() then
                     local dx = owner:GetAttribute(party and ("ck-pdx-" .. i) or ("ck-x" .. n .. "-" .. i))
                     local dy = owner:GetAttribute(party and ("ck-pdy-" .. i) or ("ck-y" .. n .. "-" .. i))
                     local dot = x * dx + y * dy
@@ -1338,12 +1348,15 @@ function W:BuildSeated()
     self.seated, self.seatedEvents = f, events
 end
 
--- A wheel's pages ({ page = { [slot] = entry } }) into its attributes
-local function store(wheel, wid, pages, unitOf)
+-- A wheel's pages ({ page = { [slot] = entry } }) into its attributes.
+-- Fixed sections preserve sparse slot indices; total counts only actions.
+local function store(wheel, wid, pages, unitOf, fixedSections)
+    wheel:SetAttribute("ck-" .. wid .. "-fixed", fixedSections and true or nil)
     local total = 0
     for page = 1, PAGES do
         local list = pages[page] or {}
-        wheel:SetAttribute("ck-" .. wid .. "-" .. page .. "-n", #list)
+        local n = fixedSections and pages[page] and fixedSections or #list
+        wheel:SetAttribute("ck-" .. wid .. "-" .. page .. "-n", n)
         for i = 1, SEGMENTS do
             local e = list[i]
             local key = "ck-" .. wid .. "-" .. page .. "-" .. i
@@ -1514,11 +1527,11 @@ function W:Fill()
     self.lists.u = upages
     -- The player's own: one page, each slot where it was put
     for n = 1, W.MY_MAX do
-        -- Its filled slots in their order, one after the other: the wheel has
-        -- as many sections
+        -- The editor's eight directions, including holes: clearing one slot
+        -- must never move another action or widen its selection region.
         local entries, list = CK.MyWheels and CK.MyWheels:Entries(n) or {}, {}
         for slot = 1, SEGMENTS do
-            if entries[slot] then list[#list + 1] = entries[slot] end
+            list[slot] = entries[slot]
         end
         local own = { [1] = list }
         for _, e in pairs(own[1]) do
@@ -1527,7 +1540,7 @@ function W:Fill()
                 e.cat = ok and cat or nil
             end
         end
-        store(wheel, tostring(n), own, function(e) return e.cat == "bandage" and "player" or nil end)
+        store(wheel, tostring(n), own, function(e) return e.cat == "bandage" and "player" or nil end, SEGMENTS)
         self.lists[tostring(n)] = own
     end
     -- The party spells' (their names follow the spell book's ranks), and
@@ -1618,7 +1631,7 @@ function W:Paint()
     if self.pview then self.pview:Hide() end
     self.view:SetAlpha(1)
     local list = self:PageItems()
-    local n = math.max(1, math.min(SEGMENTS, #list))
+    local n = math.max(1, math.min(SEGMENTS, self.frame:GetAttribute("ck-" .. self.paintedWheel .. "-" .. page .. "-n") or 0))
     self.view.bg:SetTexture(TEX .. format("ck_wheel_bg_%d", n))
     self.paintedCount = n
     for i, seg in ipairs(self.segments) do
@@ -1709,7 +1722,10 @@ end
 function W:Aimed()
     local wheel = self.frame
     local list = self:PageItems()
-    local n = math.min(SEGMENTS, #list)
+    -- Use the same geometry as the secure buttons, not the length of a
+    -- sparse table (undefined in Lua 5.1).
+    local wid = wheel:GetAttribute("wheel") or "c"
+    local n = wheel:GetAttribute("ck-" .. wid .. "-" .. (wheel:GetAttribute("page") or 1) .. "-n") or 0
     local state = C_GamePad and C_GamePad.GetDeviceMappedState and C_GamePad.GetDeviceMappedState()
     local stick = state and state.sticks and state.sticks[wheel:GetAttribute("ck-stick") or 1]
     if n > 0 and stick and stick.len and stick.len > AIM then

@@ -59,7 +59,7 @@ Choose the input method in the options or with `/ec mode wheel|stick`.
 | Button | Action |
 |---|---|
 | A | send the message (secure macro `/s`, `/y`, `/p`, `/g`… following the channel, or a direct whisper) |
-| B | empty the message; with an empty message, B is the game's own and closes the chat |
+| B | cancel unfinished Chinese code or leave the quest list; otherwise close chat and keep the message as a draft (when Keep drafts is on) |
 | D-pad ↓ / ↑ | go to the channel row / back to the suggestions |
 | D-pad ← → | move in the active row: suggestion, or chat channel |
 | Right stick click | suggestions row: insert the suggestion; channel row: confirm the channel and go back to the suggestions |
@@ -131,14 +131,13 @@ and "X" closes the keyboard.
 A row under the keyboard shows `/s`, `/y`, `/p`, `/ra`, `/g`, `/1`, `/w`, `/r` in their channel
 colors. You have to reach for it, so you never switch by mistake: press **D-pad ↓** to make it the
 active row, then **D-pad ← →** (or the right stick in the daisywheel); **D-pad ↑** goes back to the
-suggestions. With the mouse, simply **hover** a channel (no click needed). The message is then sent
-there with A. Unavailable channels are greyed out and skipped (party / raid / guild you are not in,
+suggestions. With the mouse or touch, **click** a channel to select it; hovering only shows its
+name. The message is then sent there with A. Unavailable channels are greyed out and skipped (party / raid / guild you are not in,
 `/r` with nobody to reply to). Switching never loses the chat focus.
 
-The chosen channel also becomes the chat's own sticky channel, as if you had typed `/p` in the
-game: every following message goes there, including text typed on a physical keyboard or by a
-dictation tool, and the keyboard reopens on it. Only the channel is set, never the chat's text, and
-never in combat; this can be turned off in the options.
+With **Keep chat channel** on, the addon's keyboard reopens on the channel you chose. A whisper,
+reply or a channel explicitly opened in the game takes precedence. The channel is remembered by
+the addon; the game's own chat settings are left alone.
 
 With `/w`, first pick the recipient: type the name (names may contain a space) and insert a
 suggestion (recent correspondents, group members, online friends, guild) or press A to confirm what
@@ -161,16 +160,22 @@ fields, the game's confirmation popups, settings and key bindings, nor in combat
   Y > Share in chat), go into the keyboard's message.
 - When the game closes the chat (another panel opens, combat), the message is kept as a **draft**
   and comes back with the chat: type "LFM", open the quest log, share the quest, and the keyboard
-  holds "LFM [quest]". B empties it as usual; a draft is dropped after 10 minutes.
+  holds "LFM [quest]". B and the keyboard's close button also keep the draft, so an accidental
+  close does not erase a message. Drafts expire after 10 minutes; turn them off in Keyboard ›
+  Opening › Keep drafts. LB / Backspace still deletes text (hold to repeat).
 - Backspace deletes a link as a whole.
 
 ## Quick phrases
 
 - A window of ready-made phrases, five a row by theme: social, status, combat, moving, emotes (the
   game's own commands) and a row of your own, in the game's language.
-- Open it with the **bubble** at the end of the keyboard's suggestions (D-pad right up to it, then
-  the right stick's click), from any button or layer (Gamepad tab › Macros › Quick phrases), a key
-  binding (Escape > Key Bindings > AddOns) or `/ec phrases`.
+- **Hold RB, then press D-pad left** to open it from the game world, out of combat. Let the two
+  buttons go before picking a phrase or changing the channel. Chat, menus and trigger layers keep
+  their controls. Turn this shortcut off in Keyboard › Quick phrases; a configuration-panel
+  shortcut set to the same pair takes priority.
+- You can also open it with the **bubble** at the end of the keyboard's suggestions (D-pad right
+  up to it, then the right stick's click), from any button or layer (Gamepad tab › Macros › Quick
+  phrases), a key binding (Escape > Key Bindings > AddOns) or `/ec phrases`.
 - D-pad to pick, **LB / RB** the channel (say, party, raid, guild, yell, reply: the ones not there are
   skipped; opened from the keyboard, its channel; else raid, party or say), **A** sends and closes.
   From the keyboard on the chat, the chat closes too (the send presses the game's own B); **B**
@@ -186,8 +191,8 @@ fields, the game's confirmation popups, settings and key bindings, nor in combat
   the message is written in the window's field from the phrase (any keyboard), **LB / RB** the
   channel, **A** sends it and closes, B or Escape cancel (Enter only lets go of the field, Y takes it
   back).
-- The phrases are the account's, the same for every character. Keyboard › Quick phrases: the bubble
-  on or off, and back to the default phrases. Out of combat only.
+- The phrases are the account's, the same for every character. Keyboard › Quick phrases: the
+  RB + D-pad left shortcut and bubble on or off, and back to the default phrases. Out of combat only.
 
 ## Configuration panel
 
@@ -237,6 +242,10 @@ first: Later), LB / RB change step; each choice is the panel's own setting, save
    Healer mode explained.
 6. **Comfort**: red when out of range, quest items, better items, bag counters, sell greys and repair,
    vibrations, stay seated; a summary; *Put my spells* (the Gamepad tab) or *Finish*.
+
+The last screen lists the actual shortcuts for the keyboard, quick phrases and both item wheels.
+An enabled feature without a shortcut is marked clearly; select its row to return to the relevant
+setup step. Finishing is still optional and does not force any bindings.
 
 A fight closes it; it comes back at the same step once the fight is over.
 
@@ -516,8 +525,9 @@ the wheel (it stays in your bags), tick it to show it again. The hearthstone is 
 ### Your own wheels
 
 Up to 8 wheels of your own, made in Wheels › My wheels with the gamepad: a card per wheel (its 8
-slots, its name, the button it is on), **New wheel** first. In play, a wheel shows its filled slots
-only, in their order, in as many sections. A on a card opens its editor: the wheel,
+slots, its name, the button it is on), **New wheel** first. In play, the eight directions stay
+exactly where the editor puts them. Empty slots keep their direction and do nothing when selected;
+adding or removing one action never moves the others. A on a card opens its editor: the wheel,
 its name and count in the middle, its 8 slots around it, and the lists on the right (Spells, Items,
 Macros; LB / RB change list). The D-pad (or LB / RB) goes from slot to slot; A aims the lists at a
 slot, and a choice fills it and goes on to the next one, the lists still open (a cyan diamond marks
